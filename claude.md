@@ -58,11 +58,12 @@ CardCore is a pure C\# card game engine using \*\*Event Sourcing architecture\*\
 │  ├── GetStateAtIndex(idx) → GameState      │  
 │  └── LoadEventLog(events)                   │  
 │                                             │  
-│  GameEvent (JSON serializable)              │  
+│  GameEvent (abstract, JSON polymorphic)     │  
 │  ├── SequenceId (int)                       │  
-│  ├── EventType (string)                     │  
-│  ├── DataJson (string)                      │  
-│  └── Timestamp (long)                       │  
+│  ├── Timestamp (long)                       │  
+│  ├── GameStarted : GameEvent                │  
+│  ├── CardDrawn   : GameEvent                │  
+│  └── CardPlayed  : GameEvent                │  
 │                                             │  
 │  IGameCommand                               │  
 │  └── Execute(state) → GameEvent\[\]          │  
@@ -130,30 +131,24 @@ namespace CardCore
 \`\`\`  
 \#\#\# GameEvent (CardCore)  
 \`\`\`csharp  
-using Newtonsoft.Json;  
+using System.Text.Json.Serialization;  
 namespace CardCore  
 {  
-    \[Serializable\]  
-    public class GameEvent  
+    \[JsonPolymorphic(TypeDiscriminatorPropertyName \= "$type")\]  
+    \[JsonDerivedType(typeof(GameStarted), "GameStarted")\]  
+    \[JsonDerivedType(typeof(CardDrawn),   "CardDrawn")\]  
+    \[JsonDerivedType(typeof(CardPlayed),  "CardPlayed")\]  
+    public abstract record GameEvent  
     {  
-        public int SequenceId { get; set; }  
-        public string EventType { get; set; } // "CardDrawn", "CardPlayed", etc.  
-        public string DataJson { get; set; }  // Serialized event-specific data  
-        public long Timestamp { get; set; }   // Unix timestamp  
-        public T DeserializeData\<T\>() where T : class  
-        {  
-            return JsonConvert.DeserializeObject\<T\>(DataJson);  
-        }  
-        public static GameEvent Create\<T\>(string eventType, T data) where T : class  
-        {  
-            return new GameEvent  
-            {  
-                EventType \= eventType,  
-                DataJson \= JsonConvert.SerializeObject(data),  
-                Timestamp \= DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()  
-            };  
-        }  
+        public int SequenceId { get; init; }  
+        public long Timestamp { get; init; } // Unix ms  
     }  
+    // Concrete events live in CardCore.Events. Each is a sealed record  
+    // deriving from GameEvent and carries its own typed payload.  
+    // Examples (full definitions in Events/):  
+    //   public sealed record GameStarted(IReadOnlyList\<Card\> InitialDeckOrder, int PlayerCount, int Seed) : GameEvent;  
+    //   public sealed record CardDrawn(int PlayerId, int CardId, int DeckIndexBefore) : GameEvent;  
+    //   public sealed record CardPlayed(int PlayerId, int CardId, int HandIndexBefore, int PlayAreaIndexAfter) : GameEvent;  
 }  
 \`\`\`  
 \#\#\# IGameCommand (CardCore)  
@@ -178,85 +173,87 @@ namespace CardCore
 \`\`\`csharp  
 namespace CardCore.Commands  
 {  
-    public class PlayCardCommand : IGameCommand  
+    public sealed class PlayCardCommand : IGameCommand  
     {  
-        public int PlayerId { get; set; }  
-        public int CardIndex { get; set; }  
-        public List\<GameEvent\> Execute(GameState state)  
+        public int PlayerId { get; }  
+        public int HandIndex { get; }  
+        public PlayCardCommand(int playerId, int handIndex)  
         {  
-            var events \= new List\<GameEvent\>();  
-            var player \= state.Players\[PlayerId\];  
-            var card \= player.Hand\[CardIndex\];  
-            // Event 1: Card removed from hand  
-            events.Add(GameEvent.Create("CardRemovedFromHand", new CardRemovedData  
+            if (playerId \< 0\) throw new ArgumentException(nameof(playerId));  
+            if (handIndex \< 0\) throw new ArgumentException(nameof(handIndex));  
+            PlayerId \= playerId;  
+            HandIndex \= handIndex;  
+        }  
+        public IReadOnlyList\<GameEvent\> Execute(GameState state)  
+        {  
+            var card \= state.Players\[PlayerId\].Hand\[HandIndex\];  
+            return new GameEvent\[\]  
             {  
-                PlayerId \= PlayerId,  
-                CardId \= card.Id,  
-                HandIndex \= CardIndex  
-            }));  
-            // Event 2: Card added to play area  
-            events.Add(GameEvent.Create("CardAddedToPlayArea", new CardAddedData  
-            {  
-                CardId \= card.Id,  
-                Position \= state.PlayArea.Count  
-            }));  
-            // Event 3+: Trigger any card effects (if applicable)  
-            var effectEvents \= card.TriggerEffects(state);  
-            events.AddRange(effectEvents);  
-            return events;  
+                new CardPlayed  
+                {  
+                    PlayerId \= PlayerId,  
+                    CardId \= card.Id,  
+                    HandIndexBefore \= HandIndex,  
+                    PlayAreaIndexAfter \= state.PlayArea.Count  
+                }  
+            };  
         }  
         public bool CanExecute(GameState state)  
         {  
-            return state.CurrentPlayerId \== PlayerId  
-                && CardIndex \>= 0  
-                && CardIndex \< state.Players\[PlayerId\].Hand.Count;  
+            return state.IsStarted  
+                && PlayerId \>= 0 && PlayerId \< state.Players.Count  
+                && HandIndex \>= 0 && HandIndex \< state.Players\[PlayerId\].Hand.Count;  
         }  
     }  
 }  
 \`\`\`  
 \#\#\# GameState (CardCore)  
 \`\`\`csharp  
-using Newtonsoft.Json;  
+using System.Text.Json;  
 namespace CardCore  
 {  
-    \[Serializable\]  
-    public class GameState  
+    public sealed class GameState  
     {  
-        public List\<Player\> Players { get; set; }  
-        public List\<Card\> PlayArea { get; set; }  
-        public Deck Deck { get; set; }  
-        public int CurrentPlayerId { get; set; }  
-        public string GamePhase { get; set; } // "Setup", "Playing", "GameOver"  
+        // All fields private; exposed via read-only properties.  
+        // Apply is internal — only the engine calls it.  
+        public IReadOnlyList\<Player\> Players { get; }  
+        public IReadOnlyList\<Card\> PlayArea { get; }  
+        public Deck? Deck { get; private set; }  
+        public int Seed { get; private set; }  
+        public bool IsStarted { get; private set; }  
         /// \<summary\>  
-        /// Apply a single event to this state (mutates state)  
+        /// Apply a single event to this state (mutates state).  
+        /// Pattern-matched on the concrete event type \- compiler enforces  
+        /// exhaustiveness when new event types are added.  
         /// \</summary\>  
-        public void ApplyEvent(GameEvent evt)  
+        internal void Apply(GameEvent evt)  
         {  
-            switch (evt.EventType)  
+            switch (evt)  
             {  
-                case "CardDrawn":  
-                    var drawData \= evt.DeserializeData\<CardDrawnData\>();  
-                    var card \= Deck.RemoveAt(drawData.DeckIndex);  
-                    Players\[drawData.PlayerId\].Hand.Add(card);  
+                case GameStarted started:  
+                    // seed deck, players, mark started \- see Events/GameStarted.cs  
                     break;  
-                case "CardRemovedFromHand":  
-                    var removeData \= evt.DeserializeData\<CardRemovedData\>();  
-                    Players\[removeData.PlayerId\].Hand.RemoveAt(removeData.HandIndex);  
+                case CardDrawn drawn:  
+                    var card \= Deck.RemoveAt(drawn.DeckIndexBefore);  
+                    Players\[drawn.PlayerId\].Hand.Add(card);  
                     break;  
-                case "CardAddedToPlayArea":  
-                    var addData \= evt.DeserializeData\<CardAddedData\>();  
-                    PlayArea.Add(Deck.FindCardById(addData.CardId));  
+                case CardPlayed played:  
+                    var c \= Players\[played.PlayerId\].Hand.RemoveAt(played.HandIndexBefore);  
+                    PlayArea.Add(c);  
                     break;  
-                // ... handle all event types  
+                default:  
+                    throw new InvalidOperationException(  
+                        $"Unknown event type: {evt.GetType().Name} at SequenceId {evt.SequenceId}");  
             }  
         }  
         /// \<summary\>  
-        /// Deep copy this state  
+        /// Deep copy via JSON round-trip \- used by the engine when returning  
+        /// state to consumers so the live state cannot be mutated externally.  
         /// \</summary\>  
-        public GameState Clone()  
+        internal GameState Clone()  
         {  
-            var json \= JsonConvert.SerializeObject(this);  
-            return JsonConvert.DeserializeObject\<GameState\>(json);  
+            var json \= JsonSerializer.Serialize(this);  
+            return JsonSerializer.Deserialize\<GameState\>(json)\!;  
         }  
     }  
 }  
