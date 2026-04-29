@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "displayName": "CardCore",
   "description": "Headless event-sourced card game engine.",
+  "documentationUrl": "Documentation~/unity-client.md",
   "unity": "6000.3",
   "author": {
     "name": "Crosshatch Games"
