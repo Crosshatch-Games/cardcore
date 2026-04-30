@@ -1,5 +1,4 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 using CardCore.Events;
 
 namespace CardCore;
@@ -28,6 +27,7 @@ public sealed class GameState
         _seed = seed;
         _isStarted = isStarted;
     }
+
 
     public IReadOnlyList<Player> Players => _players;
     public IReadOnlyList<Card> PlayArea => _playArea;
@@ -60,8 +60,8 @@ public sealed class GameState
 
     internal GameState Clone()
     {
-        var json = JsonSerializer.Serialize(this);
-        return JsonSerializer.Deserialize<GameState>(json)!;
+        var json = JsonConvert.SerializeObject(this, GameEvent.JsonSettings);
+        return JsonConvert.DeserializeObject<GameState>(json, GameEvent.JsonSettings)!;
     }
 
     private void ApplyGameStarted(GameStarted evt)

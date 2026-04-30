@@ -7,7 +7,7 @@ public sealed class Player
 
     public Player(int id) : this(id, new Hand()) { }
 
-    [System.Text.Json.Serialization.JsonConstructor]
+    [Newtonsoft.Json.JsonConstructor]
     internal Player(int id, Hand hand)
     {
         if (id < 0) throw new ArgumentException("Player.Id must be >= 0.", nameof(id));

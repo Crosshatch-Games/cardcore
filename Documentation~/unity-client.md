@@ -181,21 +181,21 @@ The four rules a client must follow:
 
 ## Persistence
 
-Save = serialize the event log. Load = deserialize and feed to a fresh engine.
+Save = serialize the event log. Load = deserialize and feed to a fresh engine. Always pass `GameEvent.JsonSettings` so polymorphism resolves correctly.
 
 ```csharp
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
+using Newtonsoft.Json;
 using CardCore;
 
 // Save
-var json = JsonSerializer.Serialize(engine.GetEventLog());
+var json = JsonConvert.SerializeObject(engine.GetEventLog(), GameEvent.JsonSettings);
 File.WriteAllText(path, json);
 
 // Load
 var loadedJson = File.ReadAllText(path);
-var events = JsonSerializer.Deserialize<List<GameEvent>>(loadedJson)!;
+var events = JsonConvert.DeserializeObject<List<GameEvent>>(loadedJson, GameEvent.JsonSettings)!;
 var engine = new GameEngine();
 engine.LoadEventLog(events);
 ```
@@ -238,15 +238,15 @@ Cause: the command can't run against the engine's current state (e.g. drawing fr
 
 ### Deserialized event has the wrong runtime type
 
-Cause: deserializing as a concrete subtype bypasses the polymorphism discriminator. Always declare the base type:
+Cause: deserializing without `GameEvent.JsonSettings`, or as a concrete subtype, bypasses the polymorphism discriminator. Always declare the base type AND pass the settings:
 
 ```csharp
-// Wrong — loses the discriminator, breaks for any non-CardDrawn event in the log
-var bad = JsonSerializer.Deserialize<CardDrawn>(json);
+// Wrong — no settings means the converter isn't registered; the $type discriminator is ignored
+var bad = JsonConvert.DeserializeObject<GameEvent>(json);
 
-// Right — discriminator picks the correct subtype
-var oneEvent = JsonSerializer.Deserialize<GameEvent>(json);
-var log = JsonSerializer.Deserialize<List<GameEvent>>(json);
+// Right — settings register the converter that reads $type and picks the subtype
+var oneEvent = JsonConvert.DeserializeObject<GameEvent>(json, GameEvent.JsonSettings);
+var log = JsonConvert.DeserializeObject<List<GameEvent>>(json, GameEvent.JsonSettings);
 ```
 
 ### .NET version mismatch

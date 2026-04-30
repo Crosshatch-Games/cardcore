@@ -1,7 +1,7 @@
 {
   "name": "CardCore",
   "rootNamespace": "CardCore",
-  "references": [],
+  "references": ["Newtonsoft.Json"],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

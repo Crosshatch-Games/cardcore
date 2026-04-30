@@ -149,14 +149,14 @@ public class GameEngineTests
         engineA.ExecuteCommand(new PlayCardCommand(0, 0));
         engineA.ExecuteCommand(new DrawCardCommand(0));
 
-        var json = System.Text.Json.JsonSerializer.Serialize(engineA.GetEventLog());
-        var loaded = System.Text.Json.JsonSerializer.Deserialize<List<GameEvent>>(json)!;
+        var json = Newtonsoft.Json.JsonConvert.SerializeObject(engineA.GetEventLog(), GameEvent.JsonSettings);
+        var loaded = Newtonsoft.Json.JsonConvert.DeserializeObject<List<GameEvent>>(json, GameEvent.JsonSettings)!;
 
         var engineB = new GameEngine();
         engineB.LoadEventLog(loaded);
 
-        var jsonA = System.Text.Json.JsonSerializer.Serialize(engineA.GetCurrentState());
-        var jsonB = System.Text.Json.JsonSerializer.Serialize(engineB.GetCurrentState());
+        var jsonA = Newtonsoft.Json.JsonConvert.SerializeObject(engineA.GetCurrentState(), GameEvent.JsonSettings);
+        var jsonB = Newtonsoft.Json.JsonConvert.SerializeObject(engineB.GetCurrentState(), GameEvent.JsonSettings);
         Assert.Equal(jsonA, jsonB);
     }
 

@@ -13,7 +13,7 @@ public sealed class Deck
     }
 
     // Used by replay AND JSON deserialization (no shuffle, accepts known order).
-    [System.Text.Json.Serialization.JsonConstructor]
+    [Newtonsoft.Json.JsonConstructor]
     internal Deck(IReadOnlyList<Card> cards)
     {
         if (cards is null) throw new ArgumentNullException(nameof(cards));
