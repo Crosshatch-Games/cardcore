@@ -1,5 +1,6 @@
 namespace CardCore.Events;
 
+
 public sealed record CardDrawn : GameEvent
 {
     public int PlayerId { get; init; }

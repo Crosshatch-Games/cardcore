@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using CardCore.Events;
 
 namespace CardCore.Commands;

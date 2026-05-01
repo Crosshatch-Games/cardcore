@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace CardCore.Commands;
 
 public interface IGameCommand

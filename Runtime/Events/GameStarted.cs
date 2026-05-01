@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace CardCore.Events;
 
 public sealed record GameStarted : GameEvent
