@@ -1,3 +1,4 @@
+using System;
 using CardCore;
 using Xunit;
 
@@ -5,6 +6,9 @@ namespace CardCore.PureTests;
 
 public class HandTests
 {
+    private static CardInstance NewCard(string defId = "c") =>
+        CardInstance.From(new CardDefinition(defId));
+
     [Fact]
     public void NewHand_IsEmpty()
     {
@@ -16,8 +20,8 @@ public class HandTests
     public void Add_IncreasesCount()
     {
         var hand = new Hand();
-        hand.Add(new Card(1, "A"));
-        hand.Add(new Card(2, "B"));
+        hand.Add(NewCard("a"));
+        hand.Add(NewCard("b"));
         Assert.Equal(2, hand.Count);
     }
 
@@ -25,8 +29,8 @@ public class HandTests
     public void Indexer_ReturnsCardAtPosition()
     {
         var hand = new Hand();
-        var a = new Card(1, "A");
-        var b = new Card(2, "B");
+        var a = NewCard("a");
+        var b = NewCard("b");
         hand.Add(a);
         hand.Add(b);
         Assert.Equal(a, hand[0]);
@@ -37,8 +41,8 @@ public class HandTests
     public void RemoveAt_ReturnsAndRemovesCard()
     {
         var hand = new Hand();
-        var a = new Card(1, "A");
-        var b = new Card(2, "B");
+        var a = NewCard("a");
+        var b = NewCard("b");
         hand.Add(a);
         hand.Add(b);
 

@@ -1,0 +1,13 @@
+{
+  "id": "reverie_muse",
+  "name": { "raw": "reverie muse" },
+  "types": ["lifebound", "dream", "hero"],
+  "costs": [{ "amount": 3, "type": "[dream]" }],
+  "rewards": [{ "amount": 2, "type": "[star]" }],
+  "thresholds": [],
+  "actions": [{ "verb": "draw", "payload": {} }],
+  "targets": [{ "raw": "empty tableau slot" }],
+  "back": null,
+  "rarity": "epic",
+  "flavor": { "raw": "dreams of glory" }
+}

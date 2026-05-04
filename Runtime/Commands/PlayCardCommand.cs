@@ -35,7 +35,7 @@ public sealed class PlayCardCommand : IGameCommand
             new CardPlayed
             {
                 PlayerId = _playerId,
-                CardId = card.Id,
+                InstanceId = card.InstanceId,
                 HandIndexBefore = _handIndex,
                 PlayAreaIndexAfter = state.PlayArea.Count,
             }

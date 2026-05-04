@@ -1,7 +1,7 @@
 # Card System — Design Spec
 
 **Date:** 2026-05-04
-**Status:** Approved
+**Status:** Implemented
 **Slice:** Rich card data model + catalog + Cardcore Markdown + ruleset extension points
 
 ## Purpose

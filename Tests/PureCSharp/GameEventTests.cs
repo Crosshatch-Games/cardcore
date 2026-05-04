@@ -1,16 +1,23 @@
-using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 using CardCore;
 using CardCore.Events;
+using Newtonsoft.Json;
 using Xunit;
 
 namespace CardCore.PureTests;
 
 public class GameEventTests
 {
+    private static CardInstance NewCard(string defId = "c") =>
+        CardInstance.From(new CardDefinition(defId));
+
     [Fact]
     public void GameStarted_RoundTripsThroughJson()
     {
-        var deck = new List<Card> { new(1, "A"), new(2, "B") };
+        var a = NewCard("a");
+        var b = NewCard("b");
+        var deck = new List<CardInstance> { a, b };
         var evt = new GameStarted
         {
             SequenceId = 0,
@@ -29,37 +36,39 @@ public class GameEventTests
         Assert.Equal(2, typed.PlayerCount);
         Assert.Equal(42, typed.Seed);
         Assert.Equal(2, typed.InitialDeckOrder.Count);
-        Assert.Equal(1, typed.InitialDeckOrder[0].Id);
+        Assert.Equal(a.InstanceId, typed.InitialDeckOrder[0].InstanceId);
     }
 
     [Fact]
     public void CardDrawn_RoundTripsThroughJson()
     {
+        var iid = Guid.NewGuid();
         var evt = new CardDrawn
         {
             SequenceId = 1, Timestamp = 1001,
-            PlayerId = 0, CardId = 7, DeckIndexBefore = 3,
+            PlayerId = 0, InstanceId = iid, DeckIndexBefore = 3,
         };
         var json = JsonConvert.SerializeObject(evt, typeof(GameEvent), GameEvent.JsonSettings);
         var rt = Assert.IsType<CardDrawn>(JsonConvert.DeserializeObject<GameEvent>(json, GameEvent.JsonSettings));
         Assert.Equal(0, rt.PlayerId);
-        Assert.Equal(7, rt.CardId);
+        Assert.Equal(iid, rt.InstanceId);
         Assert.Equal(3, rt.DeckIndexBefore);
     }
 
     [Fact]
     public void CardPlayed_RoundTripsThroughJson()
     {
+        var iid = Guid.NewGuid();
         var evt = new CardPlayed
         {
             SequenceId = 2, Timestamp = 1002,
-            PlayerId = 1, CardId = 9,
+            PlayerId = 1, InstanceId = iid,
             HandIndexBefore = 0, PlayAreaIndexAfter = 0,
         };
         var json = JsonConvert.SerializeObject(evt, typeof(GameEvent), GameEvent.JsonSettings);
         var rt = Assert.IsType<CardPlayed>(JsonConvert.DeserializeObject<GameEvent>(json, GameEvent.JsonSettings));
         Assert.Equal(1, rt.PlayerId);
-        Assert.Equal(9, rt.CardId);
+        Assert.Equal(iid, rt.InstanceId);
         Assert.Equal(0, rt.HandIndexBefore);
         Assert.Equal(0, rt.PlayAreaIndexAfter);
     }
@@ -70,7 +79,7 @@ public class GameEventTests
         var evt = new CardDrawn
         {
             SequenceId = 0, Timestamp = 0,
-            PlayerId = 0, CardId = 0, DeckIndexBefore = 0,
+            PlayerId = 0, InstanceId = Guid.NewGuid(), DeckIndexBefore = 0,
         };
         var json = JsonConvert.SerializeObject(evt, typeof(GameEvent), GameEvent.JsonSettings);
         Assert.Contains("\"$type\":\"CardDrawn\"", json);

@@ -28,11 +28,15 @@ public sealed class CardCoreDemo : MonoBehaviour
 {
     private void Start()
     {
-        var deck = new List<Card>
+        var copper = new CardDefinition("copper");
+        var silver = new CardDefinition("silver");
+        var gold = new CardDefinition("gold");
+
+        var deck = new List<CardInstance>
         {
-            new Card(1, "Copper"),
-            new Card(2, "Silver"),
-            new Card(3, "Gold"),
+            CardInstance.From(copper),
+            CardInstance.From(silver),
+            CardInstance.From(gold),
         };
 
         var engine = new GameEngine();
@@ -94,9 +98,9 @@ Empty engine. The first command must be `StartGameCommand`.
 ### `StartGameCommand`
 
 ```csharp
-public StartGameCommand(IReadOnlyList<Card> deck, int playerCount, int seed);
+public StartGameCommand(IReadOnlyList<CardInstance> deck, int playerCount, int seed);
 ```
-Validates non-null/non-empty deck, no duplicate `Card.Id`s, `playerCount >= 1`. Emits one `GameStarted` event carrying the post-shuffle deck order.
+Validates non-null/non-empty deck, no duplicate `CardInstance.InstanceId`s, `playerCount >= 1`. Emits one `GameStarted` event carrying the post-shuffle deck order.
 Use: `engine.ExecuteCommand(new StartGameCommand(deck, playerCount: 2, seed: 42));`
 
 ### `DrawCardCommand`
@@ -120,7 +124,7 @@ Use: `engine.ExecuteCommand(new PlayCardCommand(playerId: 0, handIndex: 0));`
 ```csharp
 public sealed record GameStarted : GameEvent
 {
-    public IReadOnlyList<Card> InitialDeckOrder { get; init; }
+    public IReadOnlyList<CardInstance> InitialDeckOrder { get; init; }
     public int PlayerCount { get; init; }
     public int Seed { get; init; }
 }
@@ -133,11 +137,11 @@ Carries the post-shuffle deck order (replay does not re-run `System.Random`). Al
 public sealed record CardDrawn : GameEvent
 {
     public int PlayerId { get; init; }
-    public int CardId { get; init; }
+    public Guid InstanceId { get; init; }
     public int DeckIndexBefore { get; init; }
 }
 ```
-Records that `CardId` moved from `DeckIndexBefore` to `PlayerId`'s hand.
+Records that the card with `InstanceId` moved from `DeckIndexBefore` to `PlayerId`'s hand.
 
 ### `CardPlayed` (event)
 
@@ -145,30 +149,196 @@ Records that `CardId` moved from `DeckIndexBefore` to `PlayerId`'s hand.
 public sealed record CardPlayed : GameEvent
 {
     public int PlayerId { get; init; }
-    public int CardId { get; init; }
+    public Guid InstanceId { get; init; }
     public int HandIndexBefore { get; init; }
     public int PlayAreaIndexAfter { get; init; }
 }
 ```
-Records that `CardId` moved from hand position `HandIndexBefore` to play-area position `PlayAreaIndexAfter`.
+Records that the card with `InstanceId` moved from hand position `HandIndexBefore` to play-area position `PlayAreaIndexAfter`.
 
 ### `GameState`
 
 ```csharp
 public IReadOnlyList<Player> Players { get; }
-public IReadOnlyList<Card> PlayArea { get; }
+public IReadOnlyList<CardInstance> PlayArea { get; }
 public Deck? Deck { get; }
 public int Seed { get; }
 public bool IsStarted { get; }
 ```
 All read-only. `GameState` instances handed to a client are clones — safe to read, mutations have no effect on the engine.
 
-### `Card`
+### `CardDefinition`
 
 ```csharp
-public sealed record Card(int Id, string Name);
+public sealed record CardDefinition
+{
+    public string Id { get; }                                    // ONLY required field; lowercase, no whitespace
+    public MarkdownText Name { get; }
+    public IReadOnlyList<string> Types { get; }
+    public IReadOnlyList<CurrencyAmount> Costs { get; }
+    public IReadOnlyList<CurrencyAmount> Rewards { get; }
+    public IReadOnlyList<CurrencyAmount> Thresholds { get; }
+    public IReadOnlyList<Action> Actions { get; }
+    public IReadOnlyList<MarkdownText> Targets { get; }
+    public string? Back { get; }
+    public string? Rarity { get; }
+    public MarkdownText Flavor { get; }
+}
 ```
-Throws `ArgumentException` if `Id < 0` or `Name` is null/empty. Cards in this slice are intentionally minimal; richer card data is a future engine slice.
+Immutable card content, loaded from JSON via `CardCatalogLoader`. Lives in a `CardCatalog` for the lifetime of a game. Only `Id` is required; every other field defaults to empty/null when missing in JSON.
+
+### `CardInstance`
+
+```csharp
+public sealed class CardInstance
+{
+    public Guid InstanceId { get; }                  // unique per instance, runtime-generated
+    public string DefinitionId { get; }              // points back to catalog
+    public MarkdownText Name { get; }
+    public IReadOnlyList<string> Types { get; }
+    public IReadOnlyList<CurrencyAmount> Costs { get; }
+    public IReadOnlyList<CurrencyAmount> Rewards { get; }
+    public IReadOnlyList<CurrencyAmount> Thresholds { get; }
+    public IReadOnlyList<Action> Actions { get; }
+    public IReadOnlyList<MarkdownText> Targets { get; }
+    public string? Back { get; }
+    public string? Rarity { get; }
+    public MarkdownText Flavor { get; }
+
+    public static CardInstance From(CardDefinition def);
+}
+```
+Mutable in-game card. Construct via `CardInstance.From(definition)`; that's the only public construction path. Mutation methods (`AddAction`, `RemoveAction`, `ReplaceAction`, `SetCost`) are `internal` — they're available to the (future) ruleset assembly via `[InternalsVisibleTo]`. JSON round-trips cleanly through the event log.
+
+### `CurrencyAmount`
+
+```csharp
+public readonly record struct CurrencyAmount(int Amount, string Type);
+```
+Throws `ArgumentException` if `Type` is null/whitespace. `Amount` may be zero or negative — rulesets decide what those mean.
+
+### `Action`
+
+```csharp
+public sealed record Action
+{
+    public string Verb { get; }
+    public Newtonsoft.Json.Linq.JObject Payload { get; }
+}
+```
+Opaque to CardCore: `Verb` is non-empty, `Payload` is any JSON object (including `{}`). Rulesets register `IActionHandler` instances per verb on an `ActionDispatcher` they own.
+
+### `MarkdownText`
+
+```csharp
+public sealed record MarkdownText
+{
+    public static readonly MarkdownText Empty;
+    public string Raw { get; }
+    public IReadOnlyList<MarkdownToken> Tokens { get; }
+}
+```
+Carries both the raw string and the parsed token stream. Tokens are derived from `Raw` and re-parsed on JSON deserialization.
+
+### `MarkdownToken` and subtypes
+
+```csharp
+public abstract record MarkdownToken;
+public sealed record LiteralToken(string Text) : MarkdownToken;
+public sealed record IconToken(string Id) : MarkdownToken;
+public sealed record KeywordToken(string Id, string? Param) : MarkdownToken;
+public sealed record VariableToken(string Name) : MarkdownToken;
+public sealed record TypeRefToken(string Category, string Value) : MarkdownToken;
+```
+The Cardcore Markdown grammar: `[id]` → `IconToken`, `#id` or `#id(param)` → `KeywordToken`, `${name}` → `VariableToken`, anything else → `LiteralToken`. `TypeRefToken` is reserved for ruleset use in structured fields.
+
+### `MarkdownParser`
+
+```csharp
+namespace CardCore.Markdown;
+
+public static class MarkdownParser
+{
+    public static MarkdownText Parse(string raw);
+    public static bool TryParse(string raw, out MarkdownText result, out string? error);
+}
+```
+Pure static. `Parse` throws `FormatException` on unbalanced brackets or unclosed variables; `TryParse` returns `false`/`error` instead.
+
+### `CardCatalog`
+
+```csharp
+namespace CardCore.Catalog;
+
+public sealed class CardCatalog
+{
+    public CardCatalog(IEnumerable<CardDefinition> definitions);
+    public CardCatalog(IEnumerable<CardDefinition> definitions, IReadOnlyList<string> loadWarnings);
+
+    public int Count { get; }
+    public IReadOnlyCollection<CardDefinition> Definitions { get; }
+    public IReadOnlyList<string> LoadWarnings { get; }
+    public CardDefinition Get(string id);            // KeyNotFoundException on miss
+    public bool TryGet(string id, out CardDefinition? def);
+    public bool Contains(string id);
+}
+```
+Throws `ArgumentException` on duplicate ids. `LoadWarnings` is populated by `CardCatalogLoader`; the single-arg constructor leaves it empty.
+
+### `CardCatalogLoader`
+
+```csharp
+namespace CardCore.Catalog;
+
+public static class CardCatalogLoader
+{
+    public static CardCatalog LoadFromDirectory(string directoryPath);
+    public static CardCatalog LoadFromJson(string json);
+    public static CardCatalog LoadFromStream(Stream stream);
+    public static CardDefinition LoadDefinition(JObject json);
+}
+```
+All three top-level methods return a fully-validated `CardCatalog`. If any card fails validation, the load fails with `CardCatalogLoadException` listing every failing card. Directories may contain one definition per file or arrays per file. Warnings (e.g. unpaired cost amount/type) accumulate on `CardCatalog.LoadWarnings` without halting the load.
+
+### `IRuleset`
+
+```csharp
+namespace CardCore;
+
+public interface IRuleset
+{
+    // Empty marker. The first concrete ruleset will drive what methods get added here.
+}
+```
+
+### `IActionHandler`
+
+```csharp
+namespace CardCore;
+
+public interface IActionHandler
+{
+    string Verb { get; }
+    IReadOnlyList<GameEvent> Handle(Action action, CardInstance card, GameState state);
+}
+```
+Implement one per verb. `Handle` returns the events to append to the log.
+
+### `ActionDispatcher`
+
+```csharp
+namespace CardCore;
+
+public sealed class ActionDispatcher
+{
+    public ActionDispatcher();
+    public void Register(IActionHandler handler);   // throws InvalidOperationException on duplicate verb
+    public bool IsRegistered(string verb);
+    public IReadOnlyList<GameEvent> Dispatch(Action action, CardInstance card, GameState state);
+    // Dispatch throws InvalidOperationException if no handler is registered for action.Verb.
+}
+```
+Owned by the ruleset, not by `GameEngine`. The engine stays ignorant of action semantics.
 
 ## Calling conventions
 
@@ -204,19 +374,36 @@ engine.LoadEventLog(events);
 
 ## Adding card data
 
-Define the deck for a prototype as a `List<Card>` and pass it to `StartGameCommand`:
+CardCore loads card content from JSON via `CardCatalogLoader`. Designers author cards as JSON files (one card per file or arrays per file) under any directory you choose; the host loads the catalog at startup.
 
 ```csharp
-var deck = new List<Card>
+using System.Collections.Generic;
+using CardCore;
+using CardCore.Catalog;
+using CardCore.Commands;
+
+var catalog = CardCatalogLoader.LoadFromDirectory("Cards/");
+
+var deck = new List<CardInstance>
 {
-    new Card(1, "Copper"),
-    new Card(2, "Silver"),
-    new Card(3, "Gold"),
+    CardInstance.From(catalog.Get("copper")),
+    CardInstance.From(catalog.Get("copper")),
+    CardInstance.From(catalog.Get("silver")),
+    CardInstance.From(catalog.Get("gold")),
 };
+
 engine.ExecuteCommand(new StartGameCommand(deck, playerCount: 2, seed: 42));
 ```
 
-`Card` is intentionally minimal in this slice — `Id` and `Name` only. Richer card data (effects, costs, types) is a future engine slice and will arrive without breaking this API.
+A minimal valid card JSON file is just:
+
+```json
+{ "id": "copper" }
+```
+
+Every other field (name, types, costs, rewards, thresholds, actions, targets, back, rarity, flavor) is optional and defaults to empty/null. Text fields use Cardcore Markdown — `[icon_id]`, `#keyword`, `#keyword(param)`, `${variable}`. See `Documentation~/Claude MD - Cardcore Cards.md` for the full grammar.
+
+The host owns deck composition: which definitions, how many copies, in what order. CardCore does not impose a deck-building model — that's a ruleset concern.
 
 ## What this doc does NOT cover
 
@@ -227,6 +414,7 @@ Out of scope for "simple Unity client":
 - Async event-replay UI
 - Animation, prefab pooling, 3D rendering
 - Unity-side testing patterns
+- Concrete rulesets (action handlers, win conditions, scoring)
 
 For visualizer / scrubber / event-replay UI patterns, see `claude.md` at the repo root.
 
@@ -235,6 +423,10 @@ For visualizer / scrubber / event-replay UI patterns, see `claude.md` at the rep
 ### `InvalidOperationException: Command X failed CanExecute against current state.`
 
 Cause: the command can't run against the engine's current state (e.g. drawing from an empty deck, playing from an empty hand). Fix: call `command.CanExecute(engine.GetCurrentState())` first; if false, inspect the state for the missing precondition.
+
+### `CardCatalogLoadException: Card catalog load failed: ...`
+
+Cause: at least one card in the catalog failed validation (missing/uppercase/whitespace `id`, action with empty verb, currency with empty type, malformed markdown). The exception's `Errors` collection lists every failing card and its source. Fix the offending JSON; the load is all-or-nothing.
 
 ### Deserialized event has the wrong runtime type
 

@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using CardCore;
 using CardCore.Commands;
 using CardCore.Events;
@@ -7,9 +10,12 @@ namespace CardCore.PureTests;
 
 public class StartGameCommandTests
 {
-    private static List<Card> ThreeCards() => new()
+    private static CardInstance NewCard(string defId = "c") =>
+        CardInstance.From(new CardDefinition(defId));
+
+    private static List<CardInstance> ThreeCards() => new()
     {
-        new Card(1, "A"), new Card(2, "B"), new Card(3, "C"),
+        NewCard("a"), NewCard("b"), NewCard("c"),
     };
 
     [Fact]
@@ -23,13 +29,14 @@ public class StartGameCommandTests
     public void Constructor_EmptyDeck_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new StartGameCommand(new List<Card>(), playerCount: 2, seed: 0));
+            new StartGameCommand(new List<CardInstance>(), playerCount: 2, seed: 0));
     }
 
     [Fact]
-    public void Constructor_DuplicateCardIds_Throws()
+    public void Constructor_DuplicateInstanceIds_Throws()
     {
-        var dup = new List<Card> { new(1, "A"), new(1, "B") };
+        var card = NewCard("a");
+        var dup = new List<CardInstance> { card, card };
         Assert.Throws<ArgumentException>(() =>
             new StartGameCommand(dup, playerCount: 2, seed: 0));
     }
@@ -79,13 +86,14 @@ public class StartGameCommandTests
     [Fact]
     public void Execute_SameSeed_ProducesSameOrder()
     {
-        var cmd1 = new StartGameCommand(ThreeCards(), 2, 42);
-        var cmd2 = new StartGameCommand(ThreeCards(), 2, 42);
+        var cards = ThreeCards();
+        var cmd1 = new StartGameCommand(cards, 2, 42);
+        var cmd2 = new StartGameCommand(cards, 2, 42);
 
         var s1 = (GameStarted)cmd1.Execute(new GameState())[0];
         var s2 = (GameStarted)cmd2.Execute(new GameState())[0];
 
-        Assert.Equal(s1.InitialDeckOrder.Select(c => c.Id),
-                     s2.InitialDeckOrder.Select(c => c.Id));
+        Assert.Equal(s1.InitialDeckOrder.Select(c => c.InstanceId),
+                     s2.InitialDeckOrder.Select(c => c.InstanceId));
     }
 }

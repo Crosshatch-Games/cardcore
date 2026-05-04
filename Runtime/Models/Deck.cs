@@ -5,29 +5,28 @@ namespace CardCore;
 
 public sealed class Deck
 {
-    private readonly List<Card> _cards;
+    private readonly List<CardInstance> _cards;
 
-    public Deck(IReadOnlyList<Card> cards, Random rng)
+    public Deck(IReadOnlyList<CardInstance> cards, Random rng)
     {
         if (cards is null) throw new ArgumentNullException(nameof(cards));
         if (rng is null) throw new ArgumentNullException(nameof(rng));
-        _cards = new List<Card>(cards);
+        _cards = new List<CardInstance>(cards);
         Shuffle(_cards, rng);
     }
 
-    // Used by replay AND JSON deserialization (no shuffle, accepts known order).
     [Newtonsoft.Json.JsonConstructor]
-    internal Deck(IReadOnlyList<Card> cards)
+    internal Deck(IReadOnlyList<CardInstance> cards)
     {
         if (cards is null) throw new ArgumentNullException(nameof(cards));
-        _cards = new List<Card>(cards);
+        _cards = new List<CardInstance>(cards);
     }
 
     public int Count => _cards.Count;
 
-    public IReadOnlyList<Card> Cards => _cards.AsReadOnly();
+    public IReadOnlyList<CardInstance> Cards => _cards.AsReadOnly();
 
-    public Card this[int index] => _cards[index];
+    public CardInstance this[int index] => _cards[index];
 
     public DeckRemoveResult RemoveTop()
     {
@@ -38,16 +37,16 @@ public sealed class Deck
         return new DeckRemoveResult(card, IndexBefore: 0);
     }
 
-    public Card FindCardById(int id)
+    public CardInstance FindByInstanceId(Guid instanceId)
     {
         foreach (var c in _cards)
-            if (c.Id == id) return c;
-        throw new InvalidOperationException($"No card with id {id} in deck.");
+            if (c.InstanceId == instanceId) return c;
+        throw new InvalidOperationException($"No card with InstanceId {instanceId} in deck.");
     }
 
-    public IReadOnlyList<Card> Snapshot() => _cards.AsReadOnly();
+    public IReadOnlyList<CardInstance> Snapshot() => _cards.AsReadOnly();
 
-    private static void Shuffle(List<Card> list, Random rng)
+    private static void Shuffle(List<CardInstance> list, Random rng)
     {
         for (int i = list.Count - 1; i > 0; i--)
         {
@@ -57,4 +56,4 @@ public sealed class Deck
     }
 }
 
-public readonly record struct DeckRemoveResult(Card Card, int IndexBefore);
+public readonly record struct DeckRemoveResult(CardInstance Card, int IndexBefore);

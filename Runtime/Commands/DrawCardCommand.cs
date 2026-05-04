@@ -31,7 +31,7 @@ public sealed class DrawCardCommand : IGameCommand
             new CardDrawn
             {
                 PlayerId = _playerId,
-                CardId = top.Id,
+                InstanceId = top.InstanceId,
                 DeckIndexBefore = 0,
             }
         };

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using CardCore;
 using Xunit;
 
@@ -5,11 +7,12 @@ namespace CardCore.PureTests;
 
 public class DeckTests
 {
-    private static List<Card> ThreeCards() => new()
+    private static CardInstance NewCard(string defId = "c") =>
+        CardInstance.From(new CardDefinition(defId));
+
+    private static List<CardInstance> ThreeCards() => new()
     {
-        new Card(1, "A"),
-        new Card(2, "B"),
-        new Card(3, "C"),
+        NewCard("a"), NewCard("b"), NewCard("c"),
     };
 
     [Fact]
@@ -35,33 +38,37 @@ public class DeckTests
     [Fact]
     public void RemoveTop_OnEmptyDeck_Throws()
     {
-        var deck = new Deck(new List<Card>(), new Random(0));
+        var deck = new Deck(new List<CardInstance>(), new Random(0));
         Assert.Throws<InvalidOperationException>(() => deck.RemoveTop());
     }
 
     [Fact]
-    public void FindCardById_ReturnsMatch()
+    public void FindByInstanceId_ReturnsMatch()
     {
-        var deck = new Deck(ThreeCards(), new Random(0));
-        var card = deck.FindCardById(2);
-        Assert.Equal(2, card.Id);
+        var cards = ThreeCards();
+        var target = cards[1];
+        var deck = new Deck(cards, new Random(0));
+
+        var card = deck.FindByInstanceId(target.InstanceId);
+        Assert.Equal(target.InstanceId, card.InstanceId);
     }
 
     [Fact]
-    public void FindCardById_NoMatch_Throws()
+    public void FindByInstanceId_NoMatch_Throws()
     {
         var deck = new Deck(ThreeCards(), new Random(0));
-        Assert.Throws<InvalidOperationException>(() => deck.FindCardById(99));
+        Assert.Throws<InvalidOperationException>(() => deck.FindByInstanceId(Guid.NewGuid()));
     }
 
     [Fact]
     public void Constructor_WithSameSeed_ProducesSameOrder()
     {
-        var d1 = new Deck(ThreeCards(), new Random(42));
-        var d2 = new Deck(ThreeCards(), new Random(42));
-        Assert.Equal(d1[0].Id, d2[0].Id);
-        Assert.Equal(d1[1].Id, d2[1].Id);
-        Assert.Equal(d1[2].Id, d2[2].Id);
+        var cards = ThreeCards();
+        var d1 = new Deck(cards, new Random(42));
+        var d2 = new Deck(cards, new Random(42));
+        Assert.Equal(d1[0].InstanceId, d2[0].InstanceId);
+        Assert.Equal(d1[1].InstanceId, d2[1].InstanceId);
+        Assert.Equal(d1[2].InstanceId, d2[2].InstanceId);
     }
 
     [Fact]

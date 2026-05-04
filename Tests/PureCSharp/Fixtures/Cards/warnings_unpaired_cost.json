@@ -1,0 +1,7 @@
+{
+  "id": "unpaired",
+  "costs": [
+    { "amount": 3, "type": "[gold]" },
+    { "amount": 5 }
+  ]
+}

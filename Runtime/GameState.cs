@@ -8,7 +8,7 @@ namespace CardCore;
 public sealed class GameState
 {
     private readonly List<Player> _players = new();
-    private readonly List<Card> _playArea = new();
+    private readonly List<CardInstance> _playArea = new();
     private Deck? _deck;
     private int _seed;
     private bool _isStarted;
@@ -18,7 +18,7 @@ public sealed class GameState
     [JsonConstructor]
     internal GameState(
         IReadOnlyList<Player>? players,
-        IReadOnlyList<Card>? playArea,
+        IReadOnlyList<CardInstance>? playArea,
         Deck? deck,
         int seed,
         bool isStarted)
@@ -32,7 +32,7 @@ public sealed class GameState
 
 
     public IReadOnlyList<Player> Players => _players;
-    public IReadOnlyList<Card> PlayArea => _playArea;
+    public IReadOnlyList<CardInstance> PlayArea => _playArea;
     public Deck? Deck => _deck;
     public int Seed => _seed;
     public bool IsStarted => _isStarted;
@@ -84,9 +84,9 @@ public sealed class GameState
             throw new InvalidOperationException(
                 $"CardDrawn against empty deck at SequenceId {evt.SequenceId}.");
         var top = _deck.RemoveTop();
-        if (top.Card.Id != evt.CardId)
+        if (top.Card.InstanceId != evt.InstanceId)
             throw new InvalidOperationException(
-                $"CardDrawn.CardId mismatch at SequenceId {evt.SequenceId}.");
+                $"CardDrawn.InstanceId mismatch at SequenceId {evt.SequenceId}.");
         _players[evt.PlayerId].Hand.Add(top.Card);
     }
 
@@ -97,9 +97,9 @@ public sealed class GameState
             throw new InvalidOperationException(
                 $"CardPlayed.HandIndexBefore out of range at SequenceId {evt.SequenceId}.");
         var card = hand.RemoveAt(evt.HandIndexBefore);
-        if (card.Id != evt.CardId)
+        if (card.InstanceId != evt.InstanceId)
             throw new InvalidOperationException(
-                $"CardPlayed.CardId mismatch at SequenceId {evt.SequenceId}.");
+                $"CardPlayed.InstanceId mismatch at SequenceId {evt.SequenceId}.");
         _playArea.Add(card);
     }
 }

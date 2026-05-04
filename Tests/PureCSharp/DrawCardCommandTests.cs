@@ -1,3 +1,4 @@
+using System;
 using CardCore;
 using CardCore.Commands;
 using CardCore.Events;
@@ -7,7 +8,10 @@ namespace CardCore.PureTests;
 
 public class DrawCardCommandTests
 {
-    private static GameState StartedState(int playerCount, params Card[] deck)
+    private static CardInstance NewCard(string defId = "c") =>
+        CardInstance.From(new CardDefinition(defId));
+
+    private static GameState StartedState(int playerCount, params CardInstance[] deck)
     {
         var s = new GameState();
         s.ApplyForTest(new GameStarted
@@ -40,21 +44,23 @@ public class DrawCardCommandTests
     [Fact]
     public void CanExecute_InvalidPlayerId_False()
     {
-        var s = StartedState(1, new Card(1, "A"));
+        var s = StartedState(1, NewCard("a"));
         Assert.False(new DrawCardCommand(5).CanExecute(s));
     }
 
     [Fact]
     public void CanExecute_Valid_True()
     {
-        var s = StartedState(1, new Card(1, "A"));
+        var s = StartedState(1, NewCard("a"));
         Assert.True(new DrawCardCommand(0).CanExecute(s));
     }
 
     [Fact]
     public void Execute_EmitsSingleCardDrawnEvent_FromTopOfDeck()
     {
-        var s = StartedState(1, new Card(7, "Top"), new Card(8, "Next"));
+        var top = NewCard("top");
+        var next = NewCard("next");
+        var s = StartedState(1, top, next);
         var cmd = new DrawCardCommand(0);
 
         var events = cmd.Execute(s);
@@ -62,7 +68,7 @@ public class DrawCardCommandTests
         Assert.Single(events);
         var drawn = Assert.IsType<CardDrawn>(events[0]);
         Assert.Equal(0, drawn.PlayerId);
-        Assert.Equal(7, drawn.CardId);
+        Assert.Equal(top.InstanceId, drawn.InstanceId);
         Assert.Equal(0, drawn.DeckIndexBefore);
     }
 }

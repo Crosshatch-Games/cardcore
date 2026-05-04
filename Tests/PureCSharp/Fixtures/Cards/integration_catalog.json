@@ -1,0 +1,17 @@
+[
+  {
+    "id": "copper",
+    "name": { "raw": "copper" },
+    "rewards": [{ "amount": 1, "type": "[coin]" }]
+  },
+  {
+    "id": "silver",
+    "name": { "raw": "silver" },
+    "rewards": [{ "amount": 2, "type": "[coin]" }]
+  },
+  {
+    "id": "gold",
+    "name": { "raw": "gold" },
+    "rewards": [{ "amount": 3, "type": "[coin]" }]
+  }
+]

@@ -1,15 +1,21 @@
+using System;
+using System.Collections.Generic;
 using CardCore;
 using CardCore.Commands;
 using CardCore.Events;
+using Newtonsoft.Json;
 using Xunit;
 
 namespace CardCore.PureTests;
 
 public class GameEngineTests
 {
-    private static List<Card> SmallDeck() => new()
+    private static CardInstance NewCard(string defId = "c") =>
+        CardInstance.From(new CardDefinition(defId));
+
+    private static List<CardInstance> SmallDeck() => new()
     {
-        new Card(1, "A"), new Card(2, "B"), new Card(3, "C"),
+        NewCard("a"), NewCard("b"), NewCard("c"),
     };
 
     [Fact]
@@ -28,7 +34,7 @@ public class GameEngineTests
         var emitted = engine.ExecuteCommand(cmd);
 
         Assert.Single(emitted);
-        Assert.Equal(1, engine.GetEventLog().Count);
+        Assert.Single(engine.GetEventLog());
         Assert.True(engine.GetCurrentState().IsStarted);
     }
 
@@ -60,7 +66,6 @@ public class GameEngineTests
     public void ExecuteCommand_FailsCanExecute_Throws()
     {
         var engine = new GameEngine();
-        // DrawCardCommand against an unstarted state.
         Assert.Throws<InvalidOperationException>(
             () => engine.ExecuteCommand(new DrawCardCommand(0)));
     }
@@ -75,7 +80,7 @@ public class GameEngineTests
 
         var state = engine.GetCurrentState();
         Assert.Equal(0, state.Players[0].Hand.Count);
-        Assert.Equal(1, state.PlayArea.Count);
+        Assert.Single(state.PlayArea);
         Assert.Equal(2, state.Deck!.Count);
     }
 
@@ -96,16 +101,16 @@ public class GameEngineTests
     {
         var engine = new GameEngine();
         engine.ExecuteCommand(new StartGameCommand(SmallDeck(), 1, 0));
-        engine.ExecuteCommand(new DrawCardCommand(0)); // index 1
-        engine.ExecuteCommand(new PlayCardCommand(0, 0)); // index 2
+        engine.ExecuteCommand(new DrawCardCommand(0));
+        engine.ExecuteCommand(new PlayCardCommand(0, 0));
 
         var sAt1 = engine.GetStateAtIndex(1);
-        Assert.Equal(1, sAt1.Players[0].Hand.Count);
-        Assert.Equal(0, sAt1.PlayArea.Count);
+        Assert.Single(sAt1.Players[0].Hand.Cards);
+        Assert.Empty(sAt1.PlayArea);
 
         var sAt2 = engine.GetStateAtIndex(2);
         Assert.Equal(0, sAt2.Players[0].Hand.Count);
-        Assert.Equal(1, sAt2.PlayArea.Count);
+        Assert.Single(sAt2.PlayArea);
     }
 
     [Fact]
@@ -128,16 +133,14 @@ public class GameEngineTests
         var s1 = engine.GetCurrentState();
         var s2 = engine.GetCurrentState();
 
-        // Two clones, distinct instances.
         Assert.NotSame(s1, s2);
-        // Mutating one (via internal hook) does not affect the other.
         s1.ApplyForTest(new CardPlayed
         {
             SequenceId = 99, Timestamp = 0,
-            PlayerId = 0, CardId = s1.Players[0].Hand[0].Id,
+            PlayerId = 0, InstanceId = s1.Players[0].Hand[0].InstanceId,
             HandIndexBefore = 0, PlayAreaIndexAfter = 0,
         });
-        Assert.Equal(1, s2.Players[0].Hand.Count);
+        Assert.Single(s2.Players[0].Hand.Cards);
     }
 
     [Fact]
@@ -149,14 +152,14 @@ public class GameEngineTests
         engineA.ExecuteCommand(new PlayCardCommand(0, 0));
         engineA.ExecuteCommand(new DrawCardCommand(0));
 
-        var json = Newtonsoft.Json.JsonConvert.SerializeObject(engineA.GetEventLog(), GameEvent.JsonSettings);
-        var loaded = Newtonsoft.Json.JsonConvert.DeserializeObject<List<GameEvent>>(json, GameEvent.JsonSettings)!;
+        var json = JsonConvert.SerializeObject(engineA.GetEventLog(), GameEvent.JsonSettings);
+        var loaded = JsonConvert.DeserializeObject<List<GameEvent>>(json, GameEvent.JsonSettings)!;
 
         var engineB = new GameEngine();
         engineB.LoadEventLog(loaded);
 
-        var jsonA = Newtonsoft.Json.JsonConvert.SerializeObject(engineA.GetCurrentState(), GameEvent.JsonSettings);
-        var jsonB = Newtonsoft.Json.JsonConvert.SerializeObject(engineB.GetCurrentState(), GameEvent.JsonSettings);
+        var jsonA = JsonConvert.SerializeObject(engineA.GetCurrentState(), GameEvent.JsonSettings);
+        var jsonB = JsonConvert.SerializeObject(engineB.GetCurrentState(), GameEvent.JsonSettings);
         Assert.Equal(jsonA, jsonB);
     }
 
@@ -171,7 +174,7 @@ public class GameEngineTests
     {
         var bogus = new List<GameEvent>
         {
-            new CardDrawn { SequenceId = 0, Timestamp = 0, PlayerId = 0, CardId = 1, DeckIndexBefore = 0 },
+            new CardDrawn { SequenceId = 0, Timestamp = 0, PlayerId = 0, InstanceId = Guid.NewGuid(), DeckIndexBefore = 0 },
         };
         Assert.Throws<InvalidOperationException>(() => new GameEngine().LoadEventLog(bogus));
     }
@@ -183,7 +186,7 @@ public class GameEngineTests
         var bogus = new List<GameEvent>
         {
             new GameStarted { SequenceId = 0, Timestamp = 0, InitialDeckOrder = deck, PlayerCount = 1, Seed = 0 },
-            new CardDrawn { SequenceId = 5, Timestamp = 0, PlayerId = 0, CardId = deck[0].Id, DeckIndexBefore = 0 },
+            new CardDrawn { SequenceId = 5, Timestamp = 0, PlayerId = 0, InstanceId = deck[0].InstanceId, DeckIndexBefore = 0 },
         };
         Assert.Throws<InvalidOperationException>(() => new GameEngine().LoadEventLog(bogus));
     }

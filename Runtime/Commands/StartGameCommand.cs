@@ -6,22 +6,26 @@ namespace CardCore.Commands;
 
 public sealed class StartGameCommand : IGameCommand
 {
-    private readonly IReadOnlyList<Card> _deck;
+    private readonly IReadOnlyList<CardInstance> _deck;
     private readonly int _playerCount;
     private readonly int _seed;
 
-    public StartGameCommand(IReadOnlyList<Card> deck, int playerCount, int seed)
+    public StartGameCommand(IReadOnlyList<CardInstance> deck, int playerCount, int seed)
     {
         if (deck is null) throw new ArgumentNullException(nameof(deck));
         if (deck.Count == 0)
             throw new ArgumentException("Deck must be non-empty.", nameof(deck));
         if (playerCount < 1)
             throw new ArgumentException("Player count must be >= 1.", nameof(playerCount));
-        var ids = new HashSet<int>();
+        var ids = new HashSet<Guid>();
         foreach (var c in deck)
-            if (!ids.Add(c.Id))
+        {
+            if (c is null)
+                throw new ArgumentException("Deck must not contain null cards.", nameof(deck));
+            if (!ids.Add(c.InstanceId))
                 throw new ArgumentException(
-                    $"Duplicate card id {c.Id} in deck.", nameof(deck));
+                    $"Duplicate CardInstance id {c.InstanceId} in deck.", nameof(deck));
+        }
 
         _deck = deck;
         _playerCount = playerCount;
@@ -33,7 +37,7 @@ public sealed class StartGameCommand : IGameCommand
     public IReadOnlyList<GameEvent> Execute(GameState state)
     {
         var rng = new Random(_seed);
-        var shuffled = new List<Card>(_deck);
+        var shuffled = new List<CardInstance>(_deck);
         for (int i = shuffled.Count - 1; i > 0; i--)
         {
             int j = rng.Next(i + 1);
