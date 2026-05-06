@@ -1,0 +1,23 @@
+[
+  {
+    "id": "copper",
+    "name": { "raw": "Copper" },
+    "rewards": [{ "amount": 1, "type": "[coin]" }]
+  },
+  {
+    "id": "silver",
+    "name": { "raw": "Silver" },
+    "rewards": [{ "amount": 2, "type": "[coin]" }]
+  },
+  {
+    "id": "gold",
+    "name": { "raw": "Gold" },
+    "rewards": [{ "amount": 3, "type": "[coin]" }]
+  },
+  {
+    "id": "estate",
+    "name": { "raw": "Estate" },
+    "costs": [{ "amount": 2, "type": "[coin]" }],
+    "rewards": [{ "amount": 1, "type": "[vp]" }]
+  }
+]

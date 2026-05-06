@@ -27,3 +27,6 @@ obj/
 # OS
 .DS_Store
 Thumbs.db
+
+# Mono / runtime crashdumps
+mono_crash.*.json
