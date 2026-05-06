@@ -5,7 +5,8 @@ obj/
 *.suo
 .vs/
 
-# Unity (in case a consumer project syncs into this repo)
+# Unity (CardCore is a package, NOT a Unity project — these dirs only appear if
+# someone accidentally opens this folder in the Unity editor; never commit them)
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -14,6 +15,9 @@ obj/
 [Ll]ogs/
 [Mm]emoryCaptures/
 [Uu]serSettings/
+[Aa]ssets/
+[Pp]ackages/
+[Pp]rojectSettings/
 
 # IDEs
 .idea/
