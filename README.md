@@ -31,7 +31,7 @@ Console.WriteLine($"PlayArea: {state.PlayArea.Count} card(s)");
 
 ## Architecture
 
-See `docs/superpowers/specs/2026-04-27-cardcore-walking-skeleton-design.md`.
+See `docs~/superpowers/specs/2026-04-27-cardcore-walking-skeleton-design.md`.
 
 ## Tests
 

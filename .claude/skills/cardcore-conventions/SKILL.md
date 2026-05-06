@@ -1,6 +1,6 @@
 ---
 name: cardcore-conventions
-description: Use when modifying any code under Runtime/ or Tests/ in the CardCore repo — adding events, commands, models, refactoring engine internals, writing tests, updating package config, or extending the public API surface
+description: Use when modifying any code under Runtime/ or Tests~/ in the CardCore repo — adding events, commands, models, refactoring engine internals, writing tests, updating package config, or extending the public API surface
 ---
 
 # CardCore Conventions
@@ -14,9 +14,9 @@ If you are about to write CardCore code and have NOT read this skill, stop and r
 ## When to Use
 
 - Adding a new model, event, command, or interface to `Runtime/`
-- Modifying any file under `Runtime/` or `Tests/PureCSharp/`
+- Modifying any file under `Runtime/` or `Tests~/PureCSharp/`
 - Updating `Runtime/CardCore.asmdef`, `package.json`, or asmdef-related config
-- Writing tests under `Tests/PureCSharp/`
+- Writing tests under `Tests~/PureCSharp/`
 - Updating `Documentation~/unity-client.md` (required when public API changes)
 
 ## Hard rules (encapsulation)
@@ -71,7 +71,7 @@ Runtime/
 ├── Ruleset/                    # (future) IRuleset, IActionHandler, ActionDispatcher
 └── Internal/                   # IsExternalInit polyfill, anything not part of the public API
 
-Tests/
+Tests~/                         # trailing ~ — Unity ignores on import
 ├── PureCSharp/                 # xUnit, pure C# — primary test surface
 └── Runtime/                    # Unity NUnit assembly — empty stub for future use
 
@@ -80,7 +80,7 @@ Documentation~/
 ├── Claude MD - Cardcore Cards.md  # author's card concept doc
 └── *.csv                       # designer authoring artifacts (NOT loaded at runtime)
 
-docs/superpowers/
+docs~/superpowers/              # trailing ~ — Unity ignores on import
 ├── specs/                      # design docs (per slice)
 └── plans/                      # implementation plans (per slice)
 ```

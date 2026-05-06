@@ -7,11 +7,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Runtime", "Runtime", "{B9B4
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CardCore", "Runtime\CardCore.csproj", "{C660C333-47AB-4A9F-87E0-7341A0F303B7}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests~", "Tests~", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PureCSharp", "PureCSharp", "{F61FCF09-CB7F-619F-F20D-C31D736566BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CardCore.PureTests", "Tests\PureCSharp\CardCore.PureTests.csproj", "{916C9E8E-A43F-4749-A224-8B4D3FEFE106}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CardCore.PureTests", "Tests~\PureCSharp\CardCore.PureTests.csproj", "{916C9E8E-A43F-4749-A224-8B4D3FEFE106}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

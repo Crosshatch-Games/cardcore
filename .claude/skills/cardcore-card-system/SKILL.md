@@ -13,7 +13,7 @@ This slice replaces the walking-skeleton's minimal `Card` (`{ Id, Name }`) with 
 
 ## Read first (in this order)
 
-1. **`docs/superpowers/specs/2026-05-04-card-system-design.md`** — the approved spec for this slice. Every type, signature, and validation rule is in there. If the spec and this skill ever disagree, the spec wins.
+1. **`docs~/superpowers/specs/2026-05-04-card-system-design.md`** — the approved spec for this slice. Every type, signature, and validation rule is in there. If the spec and this skill ever disagree, the spec wins.
 2. **`Documentation~/Claude MD - Cardcore Cards.md`** — the user's card concept doc. Source of truth for the Cardcore Markdown notation.
 3. **`Documentation~/Card Data - Heterogenous_card_list.csv`** — sample data, designer authoring artifact only. CardCore does NOT read CSV. Use it to sanity-check that your data model can express what designers actually write.
 4. **`cardcore-conventions` skill (this repo)** — the encapsulation, Unity-compat, and architecture rules. Mandatory before writing any code.
@@ -35,7 +35,7 @@ Build in this order. Each step is its own TDD cycle (write tests → red → min
 6. **`CardCatalog`** — sealed class. Two constructors (with and without warnings). Tests: duplicate-id rejection, lookup semantics, `Get` throws on miss, `TryGet` returns false on miss.
 7. **`CardCatalogLoader`** — static class. `LoadFromDirectory` / `LoadFromJson` / `LoadFromStream` / `LoadDefinition`. Tests: directory-of-files, single array file, aggregate error reporting (load fails, exception lists every bad card), warnings collection (unpaired amount/type), per-card validation rules.
 8. **`IRuleset` (empty marker) + `IActionHandler` + `ActionDispatcher`** — Tests: dispatcher registration, throw on duplicate verb (use `Assert.Throws<InvalidOperationException>`), throw on unknown verb dispatch, dispatch invokes correct handler with correct args.
-9. **Migration — replace `Card` with `CardInstance`.** Delete `Runtime/Models/Card.cs`. Update `Deck`, `Hand`, `GameState.PlayArea`, `GameStarted.InitialDeckOrder`, `CardDrawn` (`CardId: int` → `InstanceId: Guid`), `CardPlayed` (same), `StartGameCommand` (takes `IReadOnlyList<CardInstance>`). Rewrite every test in `Tests/PureCSharp/` that references `Card`. Update `Documentation~/unity-client.md` in the same change.
+9. **Migration — replace `Card` with `CardInstance`.** Delete `Runtime/Models/Card.cs`. Update `Deck`, `Hand`, `GameState.PlayArea`, `GameStarted.InitialDeckOrder`, `CardDrawn` (`CardId: int` → `InstanceId: Guid`), `CardPlayed` (same), `StartGameCommand` (takes `IReadOnlyList<CardInstance>`). Rewrite every test in `Tests~/PureCSharp/` that references `Card`. Update `Documentation~/unity-client.md` in the same change.
 10. **Integration test** — load a small catalog from JSON, build a deck of `CardInstance`s, run Start/Draw/Play, assert the event log round-trips through `JsonConvert.SerializeObject(..., GameEvent.JsonSettings)` and replays to identical state.
 
 **Do not skip ahead.** Each step's tests catch the next step's typos. Skipping leaves a debugging swamp.
@@ -75,7 +75,7 @@ These signatures change:
 
 ## Test fixtures
 
-Create under `Tests/PureCSharp/Fixtures/Cards/`:
+Create under `Tests~/PureCSharp/Fixtures/Cards/`:
 
 - `valid_minimal.json` — `{"id":"x"}` and nothing else. Tests the "only id required" promise.
 - `valid_full.json` — every field populated, drawn from a real card in the CSV (e.g., `Reverie Muse`).
@@ -91,10 +91,10 @@ Add the fixtures directory to the test project's csproj as `CopyToOutputDirector
 
 - All new types implemented, each with passing tests
 - `Card.cs` deleted; all references migrated to `CardInstance`
-- All migrated tests passing (`Tests/PureCSharp/` runs green)
+- All migrated tests passing (`Tests~/PureCSharp/` runs green)
 - Integration test passing
 - `Documentation~/unity-client.md` updated to reflect the new public surface
-- `docs/superpowers/specs/2026-05-04-card-system-design.md` Status updated from `Approved` to `Implemented`
+- `docs~/superpowers/specs/2026-05-04-card-system-design.md` Status updated from `Approved` to `Implemented`
 - `dotnet test` from repo root exits 0
 - (Optional, for the user) Unity import smoke-tested — flagged in handoff if not done
 
