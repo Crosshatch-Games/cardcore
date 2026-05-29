@@ -187,29 +187,37 @@ public sealed record CardDefinition
 ```
 Immutable card content, loaded from JSON via `CardCatalogLoader`. Lives in a `CardCatalog` for the lifetime of a game. Only `Id` is required; every other field defaults to empty/null when missing in JSON.
 
-### `CardInstance`
 
-```csharp
-public sealed class CardInstance
-{
-    public Guid InstanceId { get; }                  // unique per instance, runtime-generated
-    public string DefinitionId { get; }              // points back to catalog
-    public MarkdownText Name { get; }
-    public IReadOnlyList<string> Types { get; }
-    public IReadOnlyList<CurrencyAmount> Costs { get; }
-    public IReadOnlyList<CurrencyAmount> Rewards { get; }
-    public IReadOnlyList<CurrencyAmount> Thresholds { get; }
-    public IReadOnlyList<Action> Actions { get; }
-    public IReadOnlyList<MarkdownText> Targets { get; }
-    public string? Back { get; }
-    public string? Rarity { get; }
-    public MarkdownText Flavor { get; }
+  ### `CardInstance`
 
-    public static CardInstance From(CardDefinition def);
-}
-```
-Mutable in-game card. Construct via `CardInstance.From(definition)`; that's the only public construction path. Mutation methods (`AddAction`, `RemoveAction`, `ReplaceAction`, `SetCost`) are `internal` — they're available to the (future) ruleset assembly via `[InternalsVisibleTo]`. JSON round-trips cleanly through the event log.
+  ```csharp
+  public sealed class CardInstance
+  {
+      public Guid InstanceId { get; }                  // unique per instance, runtime-generated
+      public string DefinitionId { get; }              // points back to catalog
+      public MarkdownText Name { get; }
+      public IReadOnlyList<string> Types { get; }
+      public IReadOnlyList<CurrencyAmount> Costs { get; }
+      public IReadOnlyList<CurrencyAmount> Rewards { get; }
+      public IReadOnlyList<CurrencyAmount> Thresholds { get; }
+      public IReadOnlyList<Action> Actions { get; }
+      public IReadOnlyList<MarkdownText> Targets { get; }
+      public string? Back { get; }
+      public string? Rarity { get; }
+      public MarkdownText Flavor { get; }
 
+      public static CardInstance From(CardDefinition def);
+
+      public void ReplaceAction(int index, Action action);
+  }
+  Mutable in-game card. Construct via CardInstance.From(definition); that's the only public construction path.
+
+  ReplaceAction(index, action) lets a ruleset freeze a play-time decision into the card's action payload before the card is played. The canonical use case: a card whose play involves a player-chosen parameter (placement
+  position, "choose one of two" branch, RNG result). The ruleset captures the choice in action.Payload, calls ReplaceAction to bake it into the card instance, then submits PlayCardCommand. The mutated card lands in
+  GameState.PlayArea; the choice is now part of the event-sourced state and replay is deterministic. Throws ArgumentNullException if action is null, ArgumentOutOfRangeException if index is out of range.
+
+  The other mutation methods (AddAction, RemoveAction, SetCost) remain internal — they're available to the (future) ruleset assembly via [InternalsVisibleTo]. JSON round-trips cleanly through the event log.
+  
 ### `CurrencyAmount`
 
 ```csharp

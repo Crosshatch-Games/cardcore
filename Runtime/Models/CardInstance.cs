@@ -94,7 +94,7 @@ public sealed class CardInstance
         _actions.RemoveAt(index);
     }
 
-    internal void ReplaceAction(int index, Action action)
+    public void ReplaceAction(int index, Action action)
     {
         if (action is null) throw new ArgumentNullException(nameof(action));
         if (index < 0 || index >= _actions.Count)
