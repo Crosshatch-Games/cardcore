@@ -55,9 +55,13 @@ public sealed class GameEventConverter : JsonConverter
 
         System.Type concrete = typeName switch
         {
-            nameof(GameStarted) => typeof(GameStarted),
-            nameof(CardDrawn)   => typeof(CardDrawn),
-            nameof(CardPlayed)  => typeof(CardPlayed),
+            nameof(GameStarted)        => typeof(GameStarted),
+            nameof(CardDrawn)          => typeof(CardDrawn),
+            nameof(CardPlayed)         => typeof(CardPlayed),
+            nameof(CardDiscarded)      => typeof(CardDiscarded),
+            nameof(CardDestroyed)      => typeof(CardDestroyed),
+            nameof(DiscardMovedToDeck) => typeof(DiscardMovedToDeck),
+            nameof(DeckShuffled)       => typeof(DeckShuffled),
             _ => throw new JsonSerializationException($"Unknown GameEvent subtype: {typeName}"),
         };
 

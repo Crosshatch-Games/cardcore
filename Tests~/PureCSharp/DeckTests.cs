@@ -76,4 +76,71 @@ public class DeckTests
     {
         Assert.Throws<ArgumentNullException>(() => new Deck(null!, new Random(0)));
     }
+
+    [Fact]
+    public void AddRange_AppendsInOrder()
+    {
+        var a = NewCard("a");
+        var b = NewCard("b");
+        var c = NewCard("c");
+        var deck = new Deck(new List<CardInstance> { a });
+
+        deck.AddRange(new List<CardInstance> { b, c });
+
+        Assert.Equal(3, deck.Count);
+        Assert.Equal(a.InstanceId, deck[0].InstanceId);
+        Assert.Equal(b.InstanceId, deck[1].InstanceId);
+        Assert.Equal(c.InstanceId, deck[2].InstanceId);
+    }
+
+    [Fact]
+    public void AddRange_Null_Throws()
+    {
+        var deck = new Deck(new List<CardInstance>());
+        Assert.Throws<ArgumentNullException>(() => deck.AddRange(null!));
+    }
+
+    [Fact]
+    public void ReorderTo_ValidIdList_RearrangesInPlace()
+    {
+        var a = NewCard("a");
+        var b = NewCard("b");
+        var c = NewCard("c");
+        var deck = new Deck(new List<CardInstance> { a, b, c });
+
+        deck.ReorderTo(new List<Guid> { c.InstanceId, a.InstanceId, b.InstanceId });
+
+        Assert.Equal(c.InstanceId, deck[0].InstanceId);
+        Assert.Equal(a.InstanceId, deck[1].InstanceId);
+        Assert.Equal(b.InstanceId, deck[2].InstanceId);
+    }
+
+    [Fact]
+    public void ReorderTo_LengthMismatch_Throws()
+    {
+        var a = NewCard("a");
+        var b = NewCard("b");
+        var deck = new Deck(new List<CardInstance> { a, b });
+
+        Assert.Throws<InvalidOperationException>(
+            () => deck.ReorderTo(new List<Guid> { a.InstanceId }));
+    }
+
+    [Fact]
+    public void ReorderTo_UnknownId_Throws()
+    {
+        var a = NewCard("a");
+        var b = NewCard("b");
+        var deck = new Deck(new List<CardInstance> { a, b });
+
+        Assert.Throws<InvalidOperationException>(
+            () => deck.ReorderTo(new List<Guid> { a.InstanceId, Guid.NewGuid() }));
+    }
+
+    [Fact]
+    public void ReorderTo_Null_Throws()
+    {
+        var deck = new Deck(new List<CardInstance>());
+        Assert.Throws<ArgumentNullException>(() => deck.ReorderTo(null!));
+    }
 }

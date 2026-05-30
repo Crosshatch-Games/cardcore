@@ -10,4 +10,6 @@ public interface IGameEngine
     GameState GetStateAtIndex(int eventIndex);
     GameState GetCurrentState();
     void LoadEventLog(IReadOnlyList<GameEvent> events);
+    int GetDeckCount(int playerId);
+    int GetDiscardCount(int playerId);
 }

@@ -46,6 +46,42 @@ public sealed class Deck
 
     public IReadOnlyList<CardInstance> Snapshot() => _cards.AsReadOnly();
 
+    internal void AddRange(IReadOnlyList<CardInstance> cards)
+    {
+        if (cards is null) throw new ArgumentNullException(nameof(cards));
+        foreach (var c in cards)
+        {
+            _cards.Add(c);
+        }
+    }
+
+    internal void ReorderTo(IReadOnlyList<Guid> postShuffleInstanceIds)
+    {
+        if (postShuffleInstanceIds is null)
+            throw new ArgumentNullException(nameof(postShuffleInstanceIds));
+        if (postShuffleInstanceIds.Count != _cards.Count)
+            throw new InvalidOperationException(
+                $"Deck.ReorderTo: id list length {postShuffleInstanceIds.Count} does not match deck count {_cards.Count}.");
+
+        var byId = new Dictionary<Guid, CardInstance>(_cards.Count);
+        foreach (var c in _cards)
+        {
+            byId[c.InstanceId] = c;
+        }
+
+        var reordered = new List<CardInstance>(_cards.Count);
+        foreach (var id in postShuffleInstanceIds)
+        {
+            if (!byId.Remove(id, out var card))
+                throw new InvalidOperationException(
+                    $"Deck.ReorderTo: id {id} is not present in the deck (or appears twice).");
+            reordered.Add(card);
+        }
+
+        _cards.Clear();
+        _cards.AddRange(reordered);
+    }
+
     private static void Shuffle(List<CardInstance> list, Random rng)
     {
         for (int i = list.Count - 1; i > 0; i--)

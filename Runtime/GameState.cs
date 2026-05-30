@@ -50,6 +50,18 @@ public sealed class GameState
             case CardPlayed played:
                 ApplyCardPlayed(played);
                 break;
+            case CardDiscarded discarded:
+                ApplyCardDiscarded(discarded);
+                break;
+            case CardDestroyed destroyed:
+                ApplyCardDestroyed(destroyed);
+                break;
+            case DiscardMovedToDeck moved:
+                ApplyDiscardMovedToDeck(moved);
+                break;
+            case DeckShuffled shuffled:
+                ApplyDeckShuffled(shuffled);
+                break;
             default:
                 throw new InvalidOperationException(
                     $"Unknown event {evt.GetType().Name} at SequenceId {evt.SequenceId}.");
@@ -101,5 +113,75 @@ public sealed class GameState
             throw new InvalidOperationException(
                 $"CardPlayed.InstanceId mismatch at SequenceId {evt.SequenceId}.");
         _playArea.Add(card);
+    }
+
+    private void ApplyCardDiscarded(CardDiscarded evt)
+    {
+        var hand = _players[evt.PlayerId].Hand;
+        if (evt.HandIndexBefore < 0 || evt.HandIndexBefore >= hand.Count)
+            throw new InvalidOperationException(
+                $"CardDiscarded.HandIndexBefore out of range at SequenceId {evt.SequenceId}.");
+        var card = hand.RemoveAt(evt.HandIndexBefore);
+        if (card.InstanceId != evt.InstanceId)
+            throw new InvalidOperationException(
+                $"CardDiscarded.InstanceId mismatch at SequenceId {evt.SequenceId}.");
+        _players[evt.PlayerId].DiscardPile.Add(card);
+    }
+
+    private void ApplyCardDestroyed(CardDestroyed evt)
+    {
+        var hand = _players[evt.PlayerId].Hand;
+        if (evt.HandIndexBefore < 0 || evt.HandIndexBefore >= hand.Count)
+            throw new InvalidOperationException(
+                $"CardDestroyed.HandIndexBefore out of range at SequenceId {evt.SequenceId}.");
+        var card = hand.RemoveAt(evt.HandIndexBefore);
+        if (card.InstanceId != evt.InstanceId)
+            throw new InvalidOperationException(
+                $"CardDestroyed.InstanceId mismatch at SequenceId {evt.SequenceId}.");
+        // Card vanishes — not appended to any pile.
+    }
+
+    private void ApplyDiscardMovedToDeck(DiscardMovedToDeck evt)
+    {
+        if (_deck is null || _deck.Count != 0)
+            throw new InvalidOperationException(
+                $"DiscardMovedToDeck requires empty deck at SequenceId {evt.SequenceId}.");
+        var pile = _players[evt.PlayerId].DiscardPile;
+        if (pile.Count != evt.InstanceIds.Count)
+            throw new InvalidOperationException(
+                $"DiscardMovedToDeck length mismatch at SequenceId {evt.SequenceId}: pile has {pile.Count}, event has {evt.InstanceIds.Count}.");
+
+        var pileSnapshot = new List<CardInstance>(pile.Count);
+        for (int i = 0; i < pile.Count; i++) pileSnapshot.Add(pile[i]);
+
+        var transfer = new List<CardInstance>(pile.Count);
+        foreach (var id in evt.InstanceIds)
+        {
+            int found = -1;
+            for (int i = 0; i < pileSnapshot.Count; i++)
+            {
+                if (pileSnapshot[i].InstanceId == id)
+                {
+                    found = i;
+                    break;
+                }
+            }
+            if (found < 0)
+                throw new InvalidOperationException(
+                    $"DiscardMovedToDeck id {id} not present in discard pile at SequenceId {evt.SequenceId}.");
+            transfer.Add(pileSnapshot[found]);
+            pileSnapshot.RemoveAt(found);
+        }
+
+        while (pile.Count > 0) pile.RemoveAt(pile.Count - 1);
+        _deck.AddRange(transfer);
+    }
+
+    private void ApplyDeckShuffled(DeckShuffled evt)
+    {
+        if (_deck is null)
+            throw new InvalidOperationException(
+                $"DeckShuffled requires a deck at SequenceId {evt.SequenceId}.");
+        _deck.ReorderTo(evt.PostShuffleInstanceIds);
     }
 }
