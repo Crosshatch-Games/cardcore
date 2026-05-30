@@ -88,6 +88,18 @@ void LoadEventLog(IReadOnlyList<GameEvent> events);
 Replays a saved log into a fresh engine. Throws if engine already has events, or if the log is malformed.
 Use: `engine.LoadEventLog(deserializedEvents);`
 
+```csharp
+int GetDeckCount(int playerId);
+```
+Returns the current deck size. Reads `_state` directly — does not clone. Throws `InvalidOperationException` if the game is not started, `ArgumentOutOfRangeException` if `playerId` is out of range. Cheap enough to call in tight loops (e.g. a `TryDraw` reshuffle gate).
+Use: `if (engine.GetDeckCount(0) == 0) { /* trigger reshuffle policy */ }`
+
+```csharp
+int GetDiscardCount(int playerId);
+```
+Returns the current size of `playerId`'s discard pile. Same non-cloning read semantics and throw contract as `GetDeckCount`.
+Use: `int pile = engine.GetDiscardCount(0);`
+
 ### `GameEngine`
 
 ```csharp
@@ -118,6 +130,38 @@ public PlayCardCommand(int playerId, int handIndex);
 ```
 Player's hand card at `handIndex` → play area. `CanExecute` is false if game not started or indices invalid. Emits one `CardPlayed`.
 Use: `engine.ExecuteCommand(new PlayCardCommand(playerId: 0, handIndex: 0));`
+
+### `DiscardCommand`
+
+```csharp
+public DiscardCommand(int playerId, Guid instanceId);
+```
+Moves the card identified by `instanceId` from `playerId`'s hand to that player's discard pile. `CanExecute` is false if the game isn't started, `playerId` is invalid, or no card with `instanceId` is in the hand. Emits one `CardDiscarded`.
+Use: `engine.ExecuteCommand(new DiscardCommand(0, cardInstanceId));`
+
+### `DestroyCardCommand`
+
+```csharp
+public DestroyCardCommand(int playerId, Guid instanceId);
+```
+Removes the card identified by `instanceId` from `playerId`'s hand entirely — it does not enter the discard pile. Same `CanExecute` rules as `DiscardCommand`. Emits one `CardDestroyed`.
+Use: `engine.ExecuteCommand(new DestroyCardCommand(0, cardInstanceId));`
+
+### `MoveDiscardToDeckCommand`
+
+```csharp
+public MoveDiscardToDeckCommand(int playerId);
+```
+Empties `playerId`'s discard pile back into the shared deck, preserving discard pile order. `CanExecute` requires the deck to be empty and the discard pile to be non-empty (the engine enforces this so direct callers can't bypass the policy). Emits one `DiscardMovedToDeck`. Always followed by `ShuffleDeckCommand` in the client's reshuffle policy.
+Use: `engine.ExecuteCommand(new MoveDiscardToDeckCommand(0));`
+
+### `ShuffleDeckCommand`
+
+```csharp
+public ShuffleDeckCommand(int playerId);
+```
+Reshuffles the deck. The event records the post-shuffle order so replay is deterministic — the command itself uses an unseeded `System.Random`. `CanExecute` requires the deck to be non-empty. Emits one `DeckShuffled`.
+Use: `engine.ExecuteCommand(new ShuffleDeckCommand(0));`
 
 ### `GameStarted` (event)
 
@@ -156,6 +200,52 @@ public sealed record CardPlayed : GameEvent
 ```
 Records that the card with `InstanceId` moved from hand position `HandIndexBefore` to play-area position `PlayAreaIndexAfter`.
 
+### `CardDiscarded` (event)
+
+```csharp
+public sealed record CardDiscarded : GameEvent
+{
+    public int PlayerId { get; init; }
+    public Guid InstanceId { get; init; }
+    public int HandIndexBefore { get; init; }
+}
+```
+Records that the card with `InstanceId` moved from `PlayerId`'s hand position `HandIndexBefore` to that player's discard pile.
+
+### `CardDestroyed` (event)
+
+```csharp
+public sealed record CardDestroyed : GameEvent
+{
+    public int PlayerId { get; init; }
+    public Guid InstanceId { get; init; }
+    public int HandIndexBefore { get; init; }
+}
+```
+Records that the card with `InstanceId` was removed from `PlayerId`'s hand position `HandIndexBefore` and ceased to exist (not transferred to any pile).
+
+### `DiscardMovedToDeck` (event)
+
+```csharp
+public sealed record DiscardMovedToDeck : GameEvent
+{
+    public int PlayerId { get; init; }
+    public IReadOnlyList<Guid> InstanceIds { get; init; }
+}
+```
+Records that `PlayerId`'s discard pile (in `InstanceIds` order) was drained into the shared deck. The engine validates that the supplied ids match the pile contents exactly.
+
+### `DeckShuffled` (event)
+
+```csharp
+public sealed record DeckShuffled : GameEvent
+{
+    public int PlayerId { get; init; }
+    public IReadOnlyList<Guid> PostShuffleInstanceIds { get; init; }
+}
+```
+Records the post-shuffle order of the deck. Replay reorders the existing deck to match — the event is the source of truth for the shuffle outcome.
+
 ### `GameState`
 
 ```csharp
@@ -166,6 +256,23 @@ public int Seed { get; }
 public bool IsStarted { get; }
 ```
 All read-only. `GameState` instances handed to a client are clones — safe to read, mutations have no effect on the engine.
+
+Each `Player` exposes `DiscardPile DiscardPile { get; }` in addition to `Hand`. The discard pile is the destination of `CardDiscarded` events and the source for `DiscardMovedToDeck`. Pre-C.3 saved logs (without a `DiscardPile` in the JSON) rehydrate with an empty pile.
+
+### `DiscardPile`
+
+```csharp
+public sealed class DiscardPile
+{
+    public int Count { get; }
+    public IReadOnlyList<CardInstance> Cards { get; }
+    public CardInstance this[int index] { get; }
+    public void Add(CardInstance card);
+    public CardInstance RemoveAt(int index);
+    public void AddRange(IReadOnlyList<CardInstance> cards);
+}
+```
+Per-player pile, parallel to `Hand`. Lives on `Player.DiscardPile`. Engine code populates it via `ApplyCardDiscarded` and drains it via `ApplyDiscardMovedToDeck`; client code reads it through `GameState.Players[i].DiscardPile`.
 
 ### `CardDefinition`
 
@@ -350,12 +457,13 @@ Owned by the ruleset, not by `GameEngine`. The engine stays ignorant of action s
 
 ## Calling conventions
 
-The four rules a client must follow:
+The rules a client must follow:
 
 - **Commands carry their data via the constructor.** Build a fresh command per `ExecuteCommand` call. Don't reuse-and-mutate.
 - **`ExecuteCommand` throws `InvalidOperationException` when `CanExecute` returns false.** Call `command.CanExecute(state)` first if you want a non-throwing path.
 - **`GetCurrentState()` and `GetStateAtIndex(n)` return cloned `GameState` objects.** Modifying the returned state has no effect on the engine — the clone is yours to read or even mutate locally.
 - **The event log is the source of truth.** Persist `engine.GetEventLog()`, never the `GameState` directly. State is always derivable from the log.
+- **Reshuffle is client-orchestrated.** The engine refuses to draw from an empty deck (`DrawCardCommand.CanExecute` returns false). To reshuffle, the client issues `MoveDiscardToDeckCommand` followed by `ShuffleDeckCommand`, then retries the draw. The engine intentionally does not bundle these or auto-reshuffle on draw — policy lives in the client.
 
 ## Persistence
 

@@ -84,4 +84,66 @@ public class GameEventTests
         var json = JsonConvert.SerializeObject(evt, typeof(GameEvent), GameEvent.JsonSettings);
         Assert.Contains("\"$type\":\"CardDrawn\"", json);
     }
+
+    [Fact]
+    public void CardDiscarded_RoundTripsThroughPolymorphicConverter()
+    {
+        var id = Guid.NewGuid();
+        var evt = new CardDiscarded { SequenceId = 7, Timestamp = 100, PlayerId = 0, InstanceId = id, HandIndexBefore = 2 };
+
+        var json = JsonConvert.SerializeObject(evt, typeof(GameEvent), GameEvent.JsonSettings);
+        var roundTripped = JsonConvert.DeserializeObject<GameEvent>(json, GameEvent.JsonSettings);
+
+        var typed = Assert.IsType<CardDiscarded>(roundTripped);
+        Assert.Equal(7, typed.SequenceId);
+        Assert.Equal(0, typed.PlayerId);
+        Assert.Equal(id, typed.InstanceId);
+        Assert.Equal(2, typed.HandIndexBefore);
+    }
+
+    [Fact]
+    public void CardDestroyed_RoundTripsThroughPolymorphicConverter()
+    {
+        var id = Guid.NewGuid();
+        var evt = new CardDestroyed { SequenceId = 8, Timestamp = 100, PlayerId = 1, InstanceId = id, HandIndexBefore = 0 };
+
+        var json = JsonConvert.SerializeObject(evt, typeof(GameEvent), GameEvent.JsonSettings);
+        var roundTripped = JsonConvert.DeserializeObject<GameEvent>(json, GameEvent.JsonSettings);
+
+        var typed = Assert.IsType<CardDestroyed>(roundTripped);
+        Assert.Equal(8, typed.SequenceId);
+        Assert.Equal(1, typed.PlayerId);
+        Assert.Equal(id, typed.InstanceId);
+        Assert.Equal(0, typed.HandIndexBefore);
+    }
+
+    [Fact]
+    public void DiscardMovedToDeck_RoundTripsThroughPolymorphicConverter()
+    {
+        var ids = new List<Guid> { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        var evt = new DiscardMovedToDeck { SequenceId = 9, Timestamp = 100, PlayerId = 0, InstanceIds = ids };
+
+        var json = JsonConvert.SerializeObject(evt, typeof(GameEvent), GameEvent.JsonSettings);
+        var roundTripped = JsonConvert.DeserializeObject<GameEvent>(json, GameEvent.JsonSettings);
+
+        var typed = Assert.IsType<DiscardMovedToDeck>(roundTripped);
+        Assert.Equal(0, typed.PlayerId);
+        Assert.Equal(ids.Count, typed.InstanceIds.Count);
+        Assert.Equal(ids[0], typed.InstanceIds[0]);
+        Assert.Equal(ids[2], typed.InstanceIds[2]);
+    }
+
+    [Fact]
+    public void DeckShuffled_RoundTripsThroughPolymorphicConverter()
+    {
+        var ids = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
+        var evt = new DeckShuffled { SequenceId = 10, Timestamp = 100, PlayerId = 0, PostShuffleInstanceIds = ids };
+
+        var json = JsonConvert.SerializeObject(evt, typeof(GameEvent), GameEvent.JsonSettings);
+        var roundTripped = JsonConvert.DeserializeObject<GameEvent>(json, GameEvent.JsonSettings);
+
+        var typed = Assert.IsType<DeckShuffled>(roundTripped);
+        Assert.Equal(2, typed.PostShuffleInstanceIds.Count);
+        Assert.Equal(ids[0], typed.PostShuffleInstanceIds[0]);
+    }
 }

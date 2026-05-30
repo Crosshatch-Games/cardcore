@@ -71,4 +71,22 @@ public sealed class GameEngine : IGameEngine
             _state.Apply(evt);
         }
     }
+
+    public int GetDeckCount(int playerId)
+    {
+        if (!_state.IsStarted)
+            throw new InvalidOperationException("GetDeckCount requires the game to be started.");
+        if (playerId < 0 || playerId >= _state.Players.Count)
+            throw new ArgumentOutOfRangeException(nameof(playerId));
+        return _state.Deck?.Count ?? 0;
+    }
+
+    public int GetDiscardCount(int playerId)
+    {
+        if (!_state.IsStarted)
+            throw new InvalidOperationException("GetDiscardCount requires the game to be started.");
+        if (playerId < 0 || playerId >= _state.Players.Count)
+            throw new ArgumentOutOfRangeException(nameof(playerId));
+        return _state.Players[playerId].DiscardPile.Count;
+    }
 }
