@@ -100,6 +100,25 @@ int GetDiscardCount(int playerId);
 Returns the current size of `playerId`'s discard pile. Same non-cloning read semantics and throw contract as `GetDeckCount`.
 Use: `int pile = engine.GetDiscardCount(0);`
 
+```csharp
+void MutateLiveCardAction(Guid instanceId, int actionIndex, Action action);
+```
+Replace an action on the **live** `CardInstance` identified by `instanceId`, in place, **before** the card is played. The mutation persists on the engine's working state, so the next `PlayCardCommand` snapshots the new action into `CardPlayed.ActionsAtPlayTime` and replay (`GetStateAtIndex`, `LoadEventLog`) reproduces it deterministically.
+
+Use it to bake play-time decisions — placement positions, target zones, "choose one of two" branches, runtime-resolved RNG — into the card's action payload right before submitting `PlayCardCommand`. This is the **only** supported way to mutate a live card's payload from a client: `GetCurrentState()` returns a clone, so `CardInstance.ReplaceAction` on a state read by the client does not affect the engine.
+
+Validity (engine enforces):
+- The card must currently reside in a player's **Hand**. Cards in `PlayArea`, `Deck`, or `DiscardPile` are immutable — their actions are frozen in event-log history. Throws `InvalidOperationException` otherwise (also when the `instanceId` is unknown).
+- `actionIndex` must be in `[0, card.Actions.Count)`. Throws `ArgumentOutOfRangeException` otherwise.
+- `action` must not be null. Throws `ArgumentNullException` otherwise.
+
+Use:
+```csharp
+var mutated = new Action("spawn_piece", new JObject { ["position"] = "1,2,3" });
+engine.MutateLiveCardAction(card.InstanceId, actionIndex: 0, mutated);
+engine.ExecuteCommand(new PlayCardCommand(playerId: 0, handIndex: 0));
+```
+
 ### `GameEngine`
 
 ```csharp
@@ -196,9 +215,12 @@ public sealed record CardPlayed : GameEvent
     public Guid InstanceId { get; init; }
     public int HandIndexBefore { get; init; }
     public int PlayAreaIndexAfter { get; init; }
+    public IReadOnlyList<Action> ActionsAtPlayTime { get; init; }
 }
 ```
 Records that the card with `InstanceId` moved from hand position `HandIndexBefore` to play-area position `PlayAreaIndexAfter`.
+
+`ActionsAtPlayTime` is a snapshot of the card's `Actions` list at the moment `PlayCardCommand` executed. Replay (`GetStateAtIndex`, `LoadEventLog`) rebuilds the played `CardInstance` with this snapshot so any payload mutated via `IGameEngine.MutateLiveCardAction` is preserved across save/load. Old logs predating this field (or any `CardPlayed` event with an empty snapshot) replay using the in-hand card's actions unchanged — back-compat is automatic.
 
 ### `CardDiscarded` (event)
 
@@ -319,9 +341,7 @@ Immutable card content, loaded from JSON via `CardCatalogLoader`. Lives in a `Ca
   }
   Mutable in-game card. Construct via CardInstance.From(definition); that's the only public construction path.
 
-  ReplaceAction(index, action) lets a ruleset freeze a play-time decision into the card's action payload before the card is played. The canonical use case: a card whose play involves a player-chosen parameter (placement
-  position, "choose one of two" branch, RNG result). The ruleset captures the choice in action.Payload, calls ReplaceAction to bake it into the card instance, then submits PlayCardCommand. The mutated card lands in
-  GameState.PlayArea; the choice is now part of the event-sourced state and replay is deterministic. Throws ArgumentNullException if action is null, ArgumentOutOfRangeException if index is out of range.
+  ReplaceAction(index, action) is the low-level mutator a ruleset uses internally to edit a CardInstance's action list. Clients should NOT call it directly on cards obtained from GetCurrentState() / GetStateAtIndex() — those are clones, and the live engine state will not see the change. To bake a play-time decision (placement position, "choose one of two" branch, runtime RNG) into a card before play, use IGameEngine.MutateLiveCardAction(instanceId, actionIndex, action) instead. The engine validates that the card is in a player's hand, calls ReplaceAction on the live instance, and the next PlayCardCommand snapshots the mutated action into CardPlayed.ActionsAtPlayTime so replay is deterministic. Throws ArgumentNullException if action is null, ArgumentOutOfRangeException if index is out of range.
 
   The other mutation methods (AddAction, RemoveAction, SetCost) remain internal — they're available to the (future) ruleset assembly via [InternalsVisibleTo]. JSON round-trips cleanly through the event log.
   

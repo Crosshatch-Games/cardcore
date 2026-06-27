@@ -112,7 +112,27 @@ public sealed class GameState
         if (card.InstanceId != evt.InstanceId)
             throw new InvalidOperationException(
                 $"CardPlayed.InstanceId mismatch at SequenceId {evt.SequenceId}.");
-        _playArea.Add(card);
+        // If the event carries a snapshot of the card's actions at play time
+        // (the path used since MutateLiveCardAction shipped), rebuild the
+        // instance so the snapshot — not the in-hand actions — lands in PlayArea.
+        // Old logs with no snapshot keep their original behavior: the in-hand
+        // CardInstance moves through unchanged.
+        var played = evt.ActionsAtPlayTime is { Count: > 0 }
+            ? new CardInstance(
+                instanceId: card.InstanceId,
+                definitionId: card.DefinitionId,
+                name: card.Name,
+                types: card.Types,
+                costs: card.Costs,
+                rewards: card.Rewards,
+                thresholds: card.Thresholds,
+                actions: evt.ActionsAtPlayTime,
+                targets: card.Targets,
+                back: card.Back,
+                rarity: card.Rarity,
+                flavor: card.Flavor)
+            : card;
+        _playArea.Add(played);
     }
 
     private void ApplyCardDiscarded(CardDiscarded evt)

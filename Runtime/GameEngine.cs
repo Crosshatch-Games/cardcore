@@ -89,4 +89,29 @@ public sealed class GameEngine : IGameEngine
             throw new ArgumentOutOfRangeException(nameof(playerId));
         return _state.Players[playerId].DiscardPile.Count;
     }
+
+    public void MutateLiveCardAction(Guid instanceId, int actionIndex, Action action)
+    {
+        if (action is null) throw new ArgumentNullException(nameof(action));
+
+        for (int p = 0; p < _state.Players.Count; p++)
+        {
+            var hand = _state.Players[p].Hand;
+            for (int i = 0; i < hand.Count; i++)
+            {
+                var card = hand[i];
+                if (card.InstanceId == instanceId)
+                {
+                    // CardInstance.ReplaceAction handles index-range validation
+                    // and throws ArgumentOutOfRangeException.
+                    card.ReplaceAction(actionIndex, action);
+                    return;
+                }
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"MutateLiveCardAction: card with InstanceId {instanceId} is not in any player's hand. " +
+            "Only cards currently in hand can be mutated; cards in PlayArea, Deck, or DiscardPile are immutable.");
+    }
 }

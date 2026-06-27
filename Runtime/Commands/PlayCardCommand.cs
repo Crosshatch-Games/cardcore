@@ -30,6 +30,8 @@ public sealed class PlayCardCommand : IGameCommand
     public IReadOnlyList<GameEvent> Execute(GameState state)
     {
         var card = state.Players[_playerId].Hand[_handIndex];
+        var snapshot = new List<Action>(card.Actions.Count);
+        for (int i = 0; i < card.Actions.Count; i++) snapshot.Add(card.Actions[i]);
         return new GameEvent[]
         {
             new CardPlayed
@@ -38,6 +40,7 @@ public sealed class PlayCardCommand : IGameCommand
                 InstanceId = card.InstanceId,
                 HandIndexBefore = _handIndex,
                 PlayAreaIndexAfter = state.PlayArea.Count,
+                ActionsAtPlayTime = snapshot,
             }
         };
     }
