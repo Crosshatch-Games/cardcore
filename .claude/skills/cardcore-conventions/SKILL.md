@@ -17,7 +17,7 @@ If you are about to write CardCore code and have NOT read this skill, stop and r
 - Modifying any file under `Runtime/` or `Tests~/PureCSharp/`
 - Updating `Runtime/CardCore.asmdef`, `package.json`, or asmdef-related config
 - Writing tests under `Tests~/PureCSharp/`
-- Updating `Documentation~/unity-client.md` (required when public API changes)
+- Updating `docs~/Documentation~/unity-client.md` (required when public API changes)
 
 ## Hard rules (encapsulation)
 
@@ -43,7 +43,7 @@ These come from `feedback_unity_package_gotchas`. Every one of these has burned 
 - **`init`-only properties require `IsExternalInit` polyfill.** Already provided at `Runtime/Internal/IsExternalInit.cs`. Don't delete it. Don't move it. New `init`-only types just work because of it.
 - **Every `.cs` file needs a sibling `.meta` file.** Unity ignores files without `.meta`. The repo already has them; if you `mv` or `rm`, update the `.meta` accordingly. New files need new `.meta` files (Unity generates these on import, but pre-generating one keeps git diffs clean).
 - **`dotnet test` passing is necessary but not sufficient.** Real validation is "the package imports cleanly into Unity 6.3 LTS." If you've changed the asmdef, csproj, or anything in `package.json`, mention this gap in your handoff so the user can verify.
-- **`Documentation~/` is a Unity-special folder.** The trailing `~` tells Unity to ignore it. Documentation, sample data, and authoring artifacts go here.
+- **`docs~/Documentation~/` is a Unity-special folder.** The trailing `~` tells Unity to ignore it. Documentation, sample data, and authoring artifacts go here.
 
 ## Architecture invariants
 
@@ -75,7 +75,7 @@ Tests~/                         # trailing ~ — Unity ignores on import
 ├── PureCSharp/                 # xUnit, pure C# — primary test surface
 └── Runtime/                    # Unity NUnit assembly — empty stub for future use
 
-Documentation~/
+docs~/Documentation~/
 ├── unity-client.md             # public API surface, what every consumer reads
 ├── Claude MD - Cardcore Cards.md  # author's card concept doc
 └── *.csv                       # designer authoring artifacts (NOT loaded at runtime)
@@ -85,7 +85,7 @@ docs~/superpowers/              # trailing ~ — Unity ignores on import
 └── plans/                      # implementation plans (per slice)
 ```
 
-## Doc maintenance (Documentation~/unity-client.md)
+## Doc maintenance (docs~/Documentation~/unity-client.md)
 
 **Updating `unity-client.md` is part of any change to the public API surface.** Not a follow-up. Same change.
 

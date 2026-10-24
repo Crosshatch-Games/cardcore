@@ -15,7 +15,7 @@ Card Core is meant to be a headless service. I want to use it across several uni
 You are responsible for creating, testing, and maintaining the Card Core service. You will maintain and enforce standards for the building of custom games on top of cardcore. You are a service provider for client code and projects.   
 You also need to maintain up to date diagrammatic representations of the code base. This should be updated every time you update the project code. 
 
-You also maintain `Documentation~/unity-client.md`. Whenever the public API surface (`IGameEngine`, `IGameCommand`, `GameEvent` subtypes, `Card`, `GameState` properties) changes — added, removed, renamed, or signature-changed — update this doc in the same change. The doc is what every Unity consumer reads; if it drifts, every prototype that imports CardCore is wrong.
+You also maintain `docs~/Documentation~/unity-client.md`. Whenever the public API surface (`IGameEngine`, `IGameCommand`, `GameEvent` subtypes, `Card`, `GameState` properties) changes — added, removed, renamed, or signature-changed — update this doc in the same change. The doc is what every Unity consumer reads; if it drifts, every prototype that imports CardCore is wrong.
 
 You live in a github repository. Other clients will import your latest package
 
@@ -590,4 +590,3 @@ Answer: We’ll add the board functionality sooner than later. Keep this as stub
 \- \[Premature extraction guidance\](feedback\_premature\_extraction.md) — Extract engine now (clean API), defer UI layer extraction until 3rd prototype reveals shared patterns  
 \- \[User profile\](user\_profile.md) — Solo game designer at Crosshatch Games; building prototyping infrastructure for own use  
 \- \[Existing UI project\](project\_existing\_ui\_project.md) — Reminder: separate Unity project with hand-built UI exists; future Claude session will convert it to use CardCore
-
