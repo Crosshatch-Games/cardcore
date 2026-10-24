@@ -1,6 +1,6 @@
 # CardCore for Unity
 
-> Headless event-sourced card game engine. This doc covers the minimum to call CardCore from a Unity scene. For visualizer / scrubber / event-replay UI patterns, see `claude.md` at the repo root.
+> Headless event-sourced card game engine. This doc covers the minimum to call CardCore from a Unity scene. Engine architecture diagrams are in `docs~/architecture.md`. Visualizer / scrubber UI patterns are not covered here; the old sketches live in the git history of `claude.md`.
 
 ## Install
 
@@ -572,7 +572,7 @@ Out of scope for "simple Unity client":
 - Unity-side testing patterns
 - Concrete rulesets (action handlers, win conditions, scoring)
 
-For visualizer / scrubber / event-replay UI patterns, see `claude.md` at the repo root.
+Engine architecture diagrams are in `docs~/architecture.md`. Visualizer / scrubber UI patterns are not covered here; the old sketches live in the git history of `claude.md`.
 
 ## Troubleshooting
 
