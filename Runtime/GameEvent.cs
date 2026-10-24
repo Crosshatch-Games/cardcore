@@ -62,6 +62,7 @@ public sealed class GameEventConverter : JsonConverter
             nameof(CardDestroyed)      => typeof(CardDestroyed),
             nameof(DiscardMovedToDeck) => typeof(DiscardMovedToDeck),
             nameof(DeckShuffled)       => typeof(DeckShuffled),
+            nameof(RulesetEvent)       => typeof(RulesetEvent),
             _ => throw new JsonSerializationException($"Unknown GameEvent subtype: {typeName}"),
         };
 

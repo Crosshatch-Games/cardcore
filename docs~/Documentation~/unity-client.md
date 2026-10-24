@@ -182,6 +182,15 @@ public ShuffleDeckCommand(int playerId);
 Reshuffles the deck. The event records the post-shuffle order so replay is deterministic — the command itself uses an unseeded `System.Random`. `CanExecute` requires the deck to be non-empty. Emits one `DeckShuffled`.
 Use: `engine.ExecuteCommand(new ShuffleDeckCommand(0));`
 
+### `EmitRulesetEventCommand`
+
+```csharp
+public EmitRulesetEventCommand(string kind, JObject payload);
+```
+
+Logs a ruleset-defined state change that is not a card play (turn counters, granted resources, auto-resolved ticks). The constructor throws `ArgumentException` for a null/empty/whitespace `kind` and `ArgumentNullException` for a null `payload`; the payload is deep-copied, so later changes to your `JObject` don't affect the log. `CanExecute` requires the game to be started (a ruleset event before `GameStarted` would make the log unloadable). Emits one `RulesetEvent`.
+Use: `engine.ExecuteCommand(new EmitRulesetEventCommand("turn-advanced", new JObject { ["turn"] = 3 }));`
+
 ### `GameStarted` (event)
 
 ```csharp
@@ -267,6 +276,17 @@ public sealed record DeckShuffled : GameEvent
 }
 ```
 Records the post-shuffle order of the deck. Replay reorders the existing deck to match — the event is the source of truth for the shuffle outcome.
+
+### `RulesetEvent` (event)
+
+```csharp
+public sealed record RulesetEvent : GameEvent
+{
+    public string Kind { get; init; }
+    public JObject Payload { get; init; }
+}
+```
+Opaque, ruleset-defined event. The engine logs, serializes (via `GameEvent.JsonSettings`) and replays it, and counts it in `GetEventLog`, `GetStateAtIndex` indexing and `LoadEventLog`. It never interprets `Kind` or `Payload`, and `GameState` does not change when it is applied. A ruleset derives its own state by replaying these events through its handlers. Compare payloads with `JToken.DeepEquals`, not `==`.
 
 ### `GameState`
 

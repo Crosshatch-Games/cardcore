@@ -62,6 +62,9 @@ public sealed class GameState
             case DeckShuffled shuffled:
                 ApplyDeckShuffled(shuffled);
                 break;
+            case RulesetEvent:
+                // Opaque to the engine; rulesets derive their own state by replaying these.
+                break;
             default:
                 throw new InvalidOperationException(
                     $"Unknown event {evt.GetType().Name} at SequenceId {evt.SequenceId}.");
