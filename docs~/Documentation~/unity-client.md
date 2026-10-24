@@ -2,6 +2,16 @@
 
 > Headless event-sourced card game engine. This doc covers the minimum to call CardCore from a Unity scene. Engine architecture diagrams are in `docs~/architecture.md`. Visualizer / scrubber UI patterns are not covered here; the old sketches live in the git history of `claude.md`.
 
+## What belongs in CardCore vs. your game
+
+CardCore stays lean; your game's ruleset is allowed to grow. **Test:** *would every future ruleset need this, in the same form?* If not, keep it in your client.
+
+- **Use CardCore for:** the event log, replay and scrubbing, cards and catalog, discard/destroy/reshuffle, play-time payload mutation (`MutateLiveCardAction`).
+- **Keep in your client:** your entities and stats, win/lose, turns, currencies, zones, pieces, undo stops. Derive them by replaying the log through your own handlers and rebuild on scrub.
+- **Non-card state changes** (turn counters, granted resources, auto-resolved ticks) go through `EmitRulesetEventCommand` / `RulesetEvent`. `GameState.Apply` throws on event types it does not know, so you cannot define your own `GameEvent` subclass.
+- **Per-card custom fields** belong in your client; add them as extra top-level JSON fields and read them back from `CardDefinition.Metadata` (`IReadOnlyDictionary<string,string>`, never null). Strings keep their value; anything else is compact raw JSON (`2`, `true`, `{"a":1}`). Keys are verbatim. The engine never interprets them.
+- Do not ask for game-specific engine types (e.g. a `Units` collection). Use the primitives above.
+
 ## Install
 
 **Requirements:** Unity 6.3 LTS or newer.
@@ -332,6 +342,7 @@ public sealed record CardDefinition
     public string? Back { get; }
     public string? Rarity { get; }
     public MarkdownText Flavor { get; }
+    public IReadOnlyDictionary<string, string> Metadata { get; }   // unknown top-level JSON fields
 }
 ```
 Immutable card content, loaded from JSON via `CardCatalogLoader`. Lives in a `CardCatalog` for the lifetime of a game. Only `Id` is required; every other field defaults to empty/null when missing in JSON.
@@ -354,6 +365,7 @@ Immutable card content, loaded from JSON via `CardCatalogLoader`. Lives in a `Ca
       public string? Back { get; }
       public string? Rarity { get; }
       public MarkdownText Flavor { get; }
+      public IReadOnlyDictionary<string, string> Metadata { get; }
 
       public static CardInstance From(CardDefinition def);
 
@@ -557,7 +569,7 @@ A minimal valid card JSON file is just:
 { "id": "copper" }
 ```
 
-Every other field (name, types, costs, rewards, thresholds, actions, targets, back, rarity, flavor) is optional and defaults to empty/null. Text fields use Cardcore Markdown — `[icon_id]`, `#keyword`, `#keyword(param)`, `${variable}`. See `Documentation~/Claude MD - Cardcore Cards.md` for the full grammar.
+Every other field (name, types, costs, rewards, thresholds, actions, targets, back, rarity, flavor) is optional and defaults to empty/null. Any other top-level field is kept in `Metadata`. Text fields use Cardcore Markdown — `[icon_id]`, `#keyword`, `#keyword(param)`, `${variable}`. See `Documentation~/Claude MD - Cardcore Cards.md` for the full grammar.
 
 The host owns deck composition: which definitions, how many copies, in what order. CardCore does not impose a deck-building model — that's a ruleset concern.
 

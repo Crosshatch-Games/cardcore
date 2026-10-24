@@ -30,6 +30,17 @@ Event sourcing. Commands produce events. Events are the source of truth. State i
 - `RulesetEvent(kind, payload)` is opaque to the engine. Rulesets derive their own state from it. `Apply` ignores it.
 - UI is not in this package. Unity UI lives in client projects, consumes CardCore through `IGameEngine` only, never mutates state directly.
 
+## What belongs in CardCore (decided, do not re-litigate)
+
+CardCore is one engine for many games. Bloat here is a tax every future game pays; a game's own rules are allowed to be big.
+
+**Test before adding anything:** *would every future ruleset need this, in the same form?* If not, it belongs in the game's ruleset, not here.
+
+- **In CardCore:** generic primitives any card/board ruleset needs: events, commands, the log, replay, cards and catalog, discard/destroy/reshuffle, `MutateLiveCardAction`, the opaque `RulesetEvent`.
+- **In the game's ruleset (client):** its entities and stats, win/lose, turn structure, currencies, zones, pieces, undo stops, combat. Rulesets derive this state by replaying the log through their own handlers.
+- **Requests for game-specific state** (e.g. a `Units` collection with HP/ATK/DEF) get answered with an existing primitive (`RulesetEvent`, card `Metadata`, payload mutation), not new engine types. Add an engine primitive only when it passes the test above.
+- Origin: HeartsAndHooves `feedback_cardcore_lean_gamerules_can_grow` (2026-06-27).
+
 ## Rules (non-negotiable)
 
 Encapsulation

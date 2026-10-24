@@ -184,13 +184,34 @@ public static class CardCatalogLoader
                 targets,
                 back,
                 rarity,
-                flavor);
+                flavor,
+                ReadMetadata(jo));
         }
         catch (ArgumentException ex)
         {
             errors.Add(new CardCatalogLoadError(source, ex.Message));
             return null;
         }
+    }
+
+    private static readonly HashSet<string> KnownFields = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "id", "name", "types", "costs", "rewards", "thresholds", "actions",
+        "targets", "back", "rarity", "flavor",
+    };
+
+    // Strings keep their value; everything else is compact raw JSON (objects, arrays, true, 2, null).
+    private static IReadOnlyDictionary<string, string> ReadMetadata(JObject jo)
+    {
+        var meta = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var prop in jo.Properties())
+        {
+            if (KnownFields.Contains(prop.Name)) continue;
+            meta[prop.Name] = prop.Value.Type == JTokenType.String
+                ? prop.Value.ToString()
+                : prop.Value.ToString(Formatting.None);
+        }
+        return meta;
     }
 
     private static bool TryReadMarkdown(

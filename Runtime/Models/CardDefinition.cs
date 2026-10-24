@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using CardCore.Markdown;
 using Newtonsoft.Json;
 
@@ -18,6 +19,7 @@ public sealed record CardDefinition
     public string? Back { get; }
     public string? Rarity { get; }
     public MarkdownText Flavor { get; }
+    public IReadOnlyDictionary<string, string> Metadata { get; }
 
     [JsonConstructor]
     public CardDefinition(
@@ -31,7 +33,8 @@ public sealed record CardDefinition
         IReadOnlyList<MarkdownText>? Targets = null,
         string? Back = null,
         string? Rarity = null,
-        MarkdownText? Flavor = null)
+        MarkdownText? Flavor = null,
+        IReadOnlyDictionary<string, string>? Metadata = null)
     {
         ValidateId(Id);
         this.Id = Id;
@@ -45,6 +48,20 @@ public sealed record CardDefinition
         this.Back = Back;
         this.Rarity = Rarity;
         this.Flavor = Flavor ?? MarkdownText.Empty;
+        this.Metadata = CopyMetadata(Metadata);
+    }
+
+    private static readonly IReadOnlyDictionary<string, string> EmptyMetadata =
+        new ReadOnlyDictionary<string, string>(new Dictionary<string, string>());
+
+    private static IReadOnlyDictionary<string, string> CopyMetadata(
+        IReadOnlyDictionary<string, string>? source)
+    {
+        if (source is null || source.Count == 0) return EmptyMetadata;
+        var copy = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var kv in source)
+            copy[kv.Key] = kv.Value;
+        return new ReadOnlyDictionary<string, string>(copy);
     }
 
     private static void ValidateId(string id)
